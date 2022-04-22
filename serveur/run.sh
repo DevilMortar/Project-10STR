@@ -1,0 +1,1 @@
+clear && make clean && make && ./server -p 3000 -n Discord
