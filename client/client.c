@@ -12,6 +12,7 @@
 
 int main(int argc, char *argv[])
 {
+   system("clear");
    checkArguments(argc, argv);
    int port = atoi(argv[2]);
 
@@ -72,7 +73,6 @@ int main(int argc, char *argv[])
             lus = recv(poll_struct->poll_set[fd_index].fd, messageRecu, LG_MESSAGE, 0);
             if (lus < 0)
             {
-               perror("recv");
                exit(-3);
             }
             else if (lus == 0)
@@ -83,16 +83,16 @@ int main(int argc, char *argv[])
             else
             {
                printf("Message reçu : %s\n", messageRecu);
+               handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, fd_index);
             }
          }
-         if (poll_struct->poll_set[fd_index].revents & POLLOUT)
+         else if (poll_struct->poll_set[fd_index].revents & POLLOUT)
          {
-            printf("Message à envoyer : ");
-            fgets(messageEnvoi, LG_MESSAGE, stdin);
-            ecrits = send(descripteurSocket, messageEnvoi, strlen(messageEnvoi), 0);
+            //printf("Message à envoyer : ");
+            //fgets(messageEnvoi, LG_MESSAGE, stdin);
+            /*ecrits = send(descripteurSocket, messageEnvoi, strlen(messageEnvoi), 0);
             if (ecrits < 0)
             {
-               perror("send");
                exit(-4);
             }
             else if (ecrits == 0)
@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
             else
             {
                printf("Message envoyé : %s\n", messageEnvoi);
-            }
+            }*/
          }
       }
    }
