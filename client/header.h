@@ -12,6 +12,7 @@
 #define PORT IPPORT_USERRESERVED // = 5000
 #define LG_MESSAGE 1024
 #define VERSION "1.0.1"
+#define color(param) printf("\033[%sm",param)
 
 typedef struct User User;
 struct User
@@ -30,3 +31,4 @@ struct POLL
 };
 
 void checkArguments(int argc, char * argv[]);
+void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, int fd_index);
