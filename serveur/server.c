@@ -3,7 +3,9 @@
 int main(int argc, char *argv[])
 {
    /* ---------------- Arguments --------------- */
-   checkArguments(argc, argv);
+   char greating[LG_MESSAGE];
+   memset(greating, 0x00, LG_MESSAGE * sizeof(char));
+   checkArguments(argc, argv, greating);
 
    /* ---------------- Initialisation --------------- */
    int port = atoi(argv[2]);

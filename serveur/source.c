@@ -99,23 +99,36 @@ void checkSocketDialogue(int socketDialogue, int socketEcoute)
    }
 }
 
-void checkArguments(int argc, char *argv[])
+void checkArguments(int argc, char *argv[], char *greating)
 {
-   if (argc != 5)
+   // ./main<p7port -n name -g Hello Machin
+   if (argc < 7)
    {
-      perror("SERVER | Missing or too many arguments (4 required)");
+      perror("SERVER | Missing arguments (4 required)");
       exit(-1);
    }
    if (strcmp(argv[1], "-p") != 0)
    {
-      perror("SERVER | You need to use : ./server -p [port] -g [name]");
+      perror("SERVER | You need to use : ./server -p [port] -n [name] -g [greating]");
       exit(-1);
    }
 
    if (strcmp(argv[3], "-n") != 0)
    {
-      perror("SERVER | You need to use : ./server -p [port] -g [name]");
+      perror("SERVER | You need to use : ./server -p [port] -n [name] -g [greating]");
       exit(-1);
+   }
+
+   if(strcmp(argv[5], "-g") != 0)
+   {
+      perror("SERVER | You need to use : ./server -p [port] -n [name] -g [greating]");
+      exit(-1);
+   }
+
+   for(int i = 6; i < argc; i++)
+   {
+      strcat(greating, argv[i]);
+      strcat(greating, " ");
    }
    system("clear");
 }
