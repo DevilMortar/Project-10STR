@@ -1,1 +1,1 @@
-clear && make clean && make && ./server -p 3000 -n Discord
+clear && make clean && make && ./server -p 5000 -n Discord -g Welcome to the server!

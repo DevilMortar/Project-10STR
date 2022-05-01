@@ -1,1 +1,1 @@
-clear && make clean && make && ./client -p 3000 -n Discord
+clear && make clean && make && ./client -p 5000
