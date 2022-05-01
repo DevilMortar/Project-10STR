@@ -34,7 +34,7 @@ void newUser(Contact *contact, struct sockaddr_in pointDeRencontreDistant, int s
 void removeUser(Contact *contact, int socketDialogue);
 void printConnected(User *liste);
 void checkServer(int socketEcoute);
-void checkArguments(int argc, char * argv[]);
+void checkArguments(int argc, char * argv[], char * greating);
 void printServerStatus(int port, int socketEcoute);
 void checkSocketDialogue(int socketDialogue, int socketEcoute);
 void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact * contact, int fd_index);
