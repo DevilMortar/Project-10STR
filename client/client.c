@@ -32,8 +32,6 @@ int main(int argc, char *argv[])
       exit(-1);         // On sort en indiquant un code erreur
    }
 
-   printf("Socket créée avec succès ! (%d)\n", descripteurSocket);
-
    // Obtient la longueur en octets de la structure sockaddr_in
    longueurAdresse = sizeof(pointDeRencontreDistant);
    memset(&pointDeRencontreDistant, 0x00, longueurAdresse);
@@ -50,18 +48,38 @@ int main(int argc, char *argv[])
    }
 
    /* ---------------- Contact & Poll --------------- */
-   POLL * poll_struct = malloc(sizeof(POLL));
-   poll_struct->poll_set = malloc(2*sizeof(struct pollfd));
-   poll_struct->poll_set[0].fd = 0;
-   poll_struct->poll_set[0].events = POLLIN | POLLPRI | POLLHUP | POLLOUT;
+   POLL *poll_struct = malloc(sizeof(POLL));
+   poll_struct->poll_set = malloc(2 * sizeof(struct pollfd));
+   poll_struct->poll_set[0].fd = STDIN_FILENO;
+   poll_struct->poll_set[0].events = POLLOUT;
    poll_struct->poll_set[1].fd = descripteurSocket;
    poll_struct->poll_set[1].events = POLLIN | POLLPRI | POLLHUP | POLLOUT;
    poll_struct->numfds = 2;
 
-   printf("Connexion au serveur réussie avec succès !\n");
+   /* ---------------- Display --------------- */
+   DISPLAY *display = malloc(sizeof(DISPLAY));
+   initDisplay(display);
+
+   memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
+   memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
+   strcpy(messageEnvoi, "/version ");
+   strcat(messageEnvoi, VERSION);
+   send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
 
    while (1)
    {
+      SDL_Event event;
+      while (SDL_PollEvent(&event))
+      {
+         switch (event.type)
+         {
+         case SDL_QUIT:
+            close(descripteurSocket);
+            exit(0);
+            break;
+         }
+      }
+
       // Initialise à 0 les messages
       memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
       memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
@@ -82,15 +100,14 @@ int main(int argc, char *argv[])
             }
             else
             {
-               printf("Message reçu : %s\n", messageRecu);
-               handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, fd_index);
+               handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, display);
             }
          }
          else if (poll_struct->poll_set[fd_index].revents & POLLOUT)
          {
-            //printf("Message à envoyer : ");
-            //fgets(messageEnvoi, LG_MESSAGE, stdin);
-            /*ecrits = send(descripteurSocket, messageEnvoi, strlen(messageEnvoi), 0);
+            /*
+            fgets(messageEnvoi, LG_MESSAGE, stdin);
+            ecrits = send(descripteurSocket, messageEnvoi, strlen(messageEnvoi), 0);
             if (ecrits < 0)
             {
                exit(-4);
@@ -103,7 +120,8 @@ int main(int argc, char *argv[])
             else
             {
                printf("Message envoyé : %s\n", messageEnvoi);
-            }*/
+            }
+            */
          }
       }
    }

@@ -119,13 +119,13 @@ void checkArguments(int argc, char *argv[], char *greating)
       exit(-1);
    }
 
-   if(strcmp(argv[5], "-g") != 0)
+   if (strcmp(argv[5], "-g") != 0)
    {
       perror("SERVER | You need to use : ./server -p [port] -n [name] -g [greating]");
       exit(-1);
    }
 
-   for(int i = 6; i < argc; i++)
+   for (int i = 6; i < argc; i++)
    {
       strcat(greating, argv[i]);
       strcat(greating, " ");
@@ -175,7 +175,8 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          {
             cmd_login(strToken, messageEnvoi, socketDialogue, contact, fd_index);
          }
-         else {
+         else
+         {
             cmd_ret(501, socketDialogue, messageEnvoi);
          }
       }
@@ -284,10 +285,11 @@ void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialog
       }
       else
       {
-         strcpy(messageEnvoi, "/greating Bienvenue sur le serveur");
-         write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
-         strcpy(messageEnvoi, "/greating Bienvenue sur le serveur");
-         write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
+         strcpy(messageEnvoi, "/greating Bienvenue sur le serveur ");
+         send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
+         usleep(10);
+         strcpy(messageEnvoi, "/login");
+         send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
       }
       printf("\n");
    }
@@ -300,19 +302,12 @@ void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialog
 void cmd_users(int socketDialogue, char messageEnvoi[LG_MESSAGE], User *liste)
 {
    User *tmp = liste;
-   strcpy(messageEnvoi, "/user");
-   if (liste == NULL)
+   strcpy(messageEnvoi, "/users");
+   while (tmp != NULL)
    {
-      strcat(messageEnvoi, "Aucun");
-   }
-   else
-   {
-      while (tmp != NULL)
-      {
-         strcat(messageEnvoi, " ");
-         strcat(messageEnvoi, tmp->login);
-         tmp = tmp->suiv;
-      }
+      strcat(messageEnvoi, " ");
+      strcat(messageEnvoi, tmp->login);
+      tmp = tmp->suiv;
    }
    write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
 }
@@ -330,7 +325,7 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
 {
    const char *separators = "\n";
    strToken = strtok(NULL, separators);
-   //check if login contain spaces
+   // check if login contain spaces
    if (strToken != NULL && strlen(strToken) <= 20 && strchr(strToken, ' ') == NULL)
    {
       User *tmp = contact->first;
@@ -342,6 +337,9 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
       {
          printf("LOGIN | Error 409 : Login '%s' already used !\n", strToken);
          cmd_ret(409, socketDialogue, messageEnvoi);
+         usleep(10);
+         strcpy(messageEnvoi, "/login");
+         send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
       }
       else
       {
@@ -365,6 +363,10 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
    }
    else
    {
-      cmd_ret(400, socketDialogue, messageEnvoi);
+      printf("LOGIN | Error 409 : Login is invalid !\n");
+      cmd_ret(409, socketDialogue, messageEnvoi);
+      usleep(10);
+      strcpy(messageEnvoi, "/login");
+      send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
    }
 }
