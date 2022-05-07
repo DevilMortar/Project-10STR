@@ -15,6 +15,12 @@ int main(int argc, char *argv[])
    system("clear");
    checkArguments(argc, argv);
    int port = atoi(argv[2]);
+   char test[LG_MESSAGE];
+   strcpy(test, "éèà");
+   printf("%s\n", test);
+   printf("%d", test[0]);
+
+   printf("%d", SDLK_ESCAPE);
 
    int descripteurSocket;
    struct sockaddr_in pointDeRencontreDistant;
@@ -66,7 +72,7 @@ int main(int argc, char *argv[])
    strcat(messageEnvoi, VERSION);
    send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
 
-   while (1)
+   while (display->running)
    {
       SDL_Event event;
       while (SDL_PollEvent(&event))
@@ -74,8 +80,16 @@ int main(int argc, char *argv[])
          switch (event.type)
          {
          case SDL_QUIT:
-            close(descripteurSocket);
-            exit(0);
+            display->running = 0;
+            break;
+
+         case SDL_KEYDOWN:
+            if(handleInput(display, event))
+            {
+               send(descripteurSocket, display->inputText, LG_MESSAGE, 0);
+               addInTampon(display, display->inputText);
+               strcpy(display->inputText, ""); 
+            }
             break;
          }
       }
@@ -124,6 +138,14 @@ int main(int argc, char *argv[])
             */
          }
       }
+      SDL_RenderClear(display->renderer);
+      SDL_Rect inputRect = {0, WINDOW_HEIGHT-TEXT_SIZE, 0, 0};
+      if (strlen(display->inputText) > 0)
+      renderWidgetText(display->inputText, NULL, TEXT_SIZE, display->renderer, &inputRect);
+      displayTampon(display);
+      SDL_RenderPresent(display->renderer);
    }
+   close(descripteurSocket);
+   SDL_Quit();
    return 0;
 }
