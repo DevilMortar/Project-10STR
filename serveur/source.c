@@ -199,7 +199,7 @@ void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
       {
          emetteur = emetteur->suiv;
       }
-      if (emetteur != NULL && destinataire != NULL)
+      if (emetteur != NULL && destinataire != NULL && destinataire->logged == 1)
       {
          cmd_ret(200, socketDialogue, messageEnvoi);
          strcpy(messageEnvoi, "/mp ");
@@ -241,7 +241,7 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
          User *destinataire = liste;
          while (destinataire != NULL)
          {
-            if (destinataire->socketClient != socketDialogue)
+            if (destinataire->socketClient != socketDialogue && destinataire->logged == 1)
             {
                strcpy(messageEnvoi, "/mg ");
                strcat(messageEnvoi, emetteur->login);
@@ -305,8 +305,11 @@ void cmd_users(int socketDialogue, char messageEnvoi[LG_MESSAGE], User *liste)
    strcpy(messageEnvoi, "/users");
    while (tmp != NULL)
    {
-      strcat(messageEnvoi, " ");
-      strcat(messageEnvoi, tmp->login);
+      if (tmp->logged == 1)
+      {
+         strcat(messageEnvoi, " ");
+         strcat(messageEnvoi, tmp->login);
+      }
       tmp = tmp->suiv;
    }
    write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
@@ -352,6 +355,7 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
          {
             strcpy(tmp->login, strToken);
             printf("LOGIN | User %s logged in !\n", strToken);
+            tmp->logged = 1;
             cmd_ret(200, socketDialogue, messageEnvoi);
          }
          else

@@ -16,14 +16,27 @@
 #define PORT IPPORT_USERRESERVED // = 5000
 #define LG_MESSAGE 1024
 #define VERSION "1.0.1"
-#define WINDOW_WIDTH 800
-#define WINDOW_HEIGHT 600
+#define WINDOW_WIDTH 1000
+#define WINDOW_HEIGHT 800
+#define HEADER_HEIGHT 80
+#define FOOTER_HEIGHT 100
+#define LIST_WIDTH 200
+#define BODY_HEIGHT (WINDOW_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT)
 #define TEXT_SIZE 20
-#define TAMPON_SIZE 100
-#define TAMPON_CURSOR_SIZE 2
+#define TAMPON_SIZE 10
+#define TAMPON_CURSOR_SIZE 5
 #define goto_x_y(y,x){printf("\033[%u;%uH",y,x);}
 #define color(param) printf("\033[%sm",param)
 #define delete() printf("%c[2K\r\n", 27)
+
+typedef struct USER USER;
+struct USER
+{
+   char * login;
+   SDL_Rect rect;
+   USER * next;
+   bool hover;
+};
 
 typedef struct DISPLAY DISPLAY;
 struct DISPLAY
@@ -34,8 +47,26 @@ struct DISPLAY
    char **tampon;
    int tampon_length;
    int tampon_cursor;
+   USER * users;
+   char * login;
    char * inputText;
+   char * prefix;
+   bool logged;
    bool shift;
+   int socket;
+};
+
+typedef struct BUTTON BUTTON;
+struct BUTTON
+{
+   SDL_Rect rect;
+   char * text;
+   bool clicked;
+   bool hover;
+   bool visible;
+   bool enabled;
+   void (*callback)(DISPLAY *);
+   BUTTON * next;
 };
    
 
@@ -50,12 +81,24 @@ struct POLL
 void initDisplay(DISPLAY *display);
 void SDL_ExitWithError(const char *message);
 void displayTampon(DISPLAY *display);
-void renderWidgetText(char *message, SDL_Color* color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect);
+SDL_Texture * renderWidgetText(char *message, SDL_Color* color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect);
+void displayInterface(DISPLAY *display, BUTTON *buttonList);
+
+//Button
+BUTTON * createButton(char *text, bool cliked, bool hover, bool visible, bool enabled, BUTTON *buttonList, void (*callback)(DISPLAY *));
+void checkOverButton(BUTTON * buttonList, SDL_Event event);
+void checkClickButton(BUTTON * buttonList, SDL_Event event, DISPLAY *display);
+void askForUserList(DISPLAY *display);
+void checkHoverUser(DISPLAY *display, SDL_Event event);
+void checkClickUser(DISPLAY *display, SDL_Event event);
 
 
 
 void checkArguments(int argc, char * argv[]);
 void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, DISPLAY *display);
-void codeError(char *strToken);
+void codeError(char *strToken, DISPLAY *display);
 void addInTampon(DISPLAY *display, char *message);
+void clearTampon(DISPLAY *display);
 bool handleInput(DISPLAY *display, SDL_Event event);
+void sendMessage(DISPLAY *display);
+USER * freeUserList(USER *userList);

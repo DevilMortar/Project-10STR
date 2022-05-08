@@ -33,6 +33,11 @@ void initDisplay(DISPLAY *display)
    strcpy(display->inputText, "");
    display->running = 1;
    display->shift = 0;
+   display->prefix = malloc(sizeof(char) * LG_MESSAGE);
+   display->login = malloc(sizeof(char) * LG_MESSAGE);
+   display->users = NULL;
+   strcpy(display->prefix, "/login");
+   display->logged = 0;
 
    for (int i = 0; i < TAMPON_SIZE; i++)
    {
@@ -79,7 +84,7 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          {
             strToken = strtok(NULL, separators);
             strcpy(printMessage, strToken);
-            strcat(printMessage, " : ");
+            strcat(printMessage, " to you : ");
             while (strToken != NULL)
             {
                strToken = strtok(NULL, separators);
@@ -91,11 +96,10 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
             }
             strcat(printMessage, "\n");
             printf("%s", printMessage);
+            addInTampon(display, printMessage);
          }
          else if (strcmp(strToken, "/mg") == 0)
          {
-            // color("08");
-            // color("30");
             strToken = strtok(NULL, separators);
             strcpy(printMessage, strToken);
             strcat(printMessage, " : ");
@@ -114,17 +118,25 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          }
          else if (strcmp(strToken, "/users") == 0)
          {
-            strcat(printMessage, "Liste des utilisateurs connectés: \n");
+            strcat(printMessage, "Users connected :\n");
+            display->users = freeUserList(display->users);
             while (strToken != NULL)
             {
                strToken = strtok(NULL, separators);
                if (strToken != NULL)
                {
                   strcat(printMessage, strToken);
+                  USER *new = malloc(sizeof(USER));
+                  new->login = malloc(sizeof(char) * LG_MESSAGE);
+                  strcpy(new->login, strToken);
+                  new->next = display->users;
+                  new->hover = 0;
+                  display->users = new;
                   strcat(printMessage, "\n");
                }
             }
             printf("%s", printMessage);
+            addInTampon(display, printMessage);
          }
          else if (strcmp(strToken, "/greating") == 0)
          {
@@ -142,50 +154,54 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          }
          else if (strcmp(strToken, "/login") == 0)
          {
-            printf("Choisissez un nom d'utilisateur (20 caractères max, espace interdit): \n");
-
-            char login[LG_MESSAGE];
-            memset(login, 0x00, LG_MESSAGE * sizeof(char));
-            fgets(login, LG_MESSAGE, stdin);
-            strcpy(messageEnvoi, "/login ");
-            strcat(messageEnvoi, login);
-            send(socketDialogue, messageEnvoi, LG_MESSAGE, 0);
+            printf("Choose a login (max 20 characters, no spaces): \n");
+            addInTampon(display, "Choose a login (max 20 characters, no spaces): \n");
          }
          else if (strcmp(strToken, "/ret") == 0)
          {
             strToken = strtok(NULL, separators);
-            codeError(strToken);
+            codeError(strToken, display);
          }
       }
    }
    color("0");
 }
 
-void codeError(char *strToken)
+void codeError(char *strToken, DISPLAY *display)
 {
    if (strcmp(strToken, "400") == 0)
    {
-      printf("ERROR 400 | The request is not unable\n");
+      addInTampon(display, "ERROR 400 | The request is not unable\n");
    }
 
    else if (strcmp(strToken, "404") == 0)
    {
-      printf("ERROR 404 | User is not found\n");
+      addInTampon(display, "ERROR 404 | User is not found\n");
    }
 
    else if (strcmp(strToken, "409") == 0)
    {
-      printf("ERROR 409 | You can't choose this name\n");
+      addInTampon(display, "ERROR 409 | You can't choose this name\n");
    }
 
    else if (strcmp(strToken, "426") == 0)
    {
-      printf("ERROR 426 | Version need to upgraded\n");
+      addInTampon(display, "ERROR 426 | Version need to upgraded\n");
    }
 
    else if (strcmp(strToken, "501") == 0)
    {
-      printf("ERROR 501 | Request is not implemented\n");
+      addInTampon(display, "ERROR 501 | Request is not implemented\n");
+   }
+   else if (strcmp(strToken, "200") == 0)
+   {
+      if (display->logged == 0)
+      {
+         display->logged = 1;
+         printf("Login successful\n");
+         clearTampon(display);
+         strcpy(display->prefix, "/mg");
+      }
    }
 }
 
@@ -202,11 +218,20 @@ void addInTampon(DISPLAY *display, char message[LG_MESSAGE])
    strcpy(display->tampon[0], message);
 }
 
+void clearTampon(DISPLAY *display)
+{
+   for (int i = 0; i < TAMPON_SIZE; i++)
+   {
+      memset(display->tampon[i], 0x00, LG_MESSAGE * sizeof(char));
+   }
+   display->tampon_length = 0;
+}
+
 void displayTampon(DISPLAY *display)
 {
-   SDL_Rect position = {0, 0, 0, 0};
+   SDL_Rect position = {5, 0, 0, 0};
    int max = 0;
-   int index = display->tampon_cursor * TAMPON_CURSOR_SIZE;
+   int index = display->tampon_cursor;
    if (display->tampon_length - index > TAMPON_CURSOR_SIZE)
    {
       max = index + TAMPON_CURSOR_SIZE;
@@ -215,16 +240,39 @@ void displayTampon(DISPLAY *display)
    {
       max = display->tampon_length;
    }
-   int y = 0;
+   int y = HEADER_HEIGHT + 10;
    for (int i = max - 1; i >= index; i--)
    {
+      SDL_Color *color;
+      if (strstr(display->tampon[i], "ERROR") != NULL)
+      {
+         color = malloc(sizeof(SDL_Color));
+         color->r = 255;
+         color->g = 0;
+         color->b = 0;
+         color->a = 255;
+      }
+      else if (strstr(display->tampon[i], "->") != NULL && strstr(display->tampon[i], ":") != NULL)
+      {
+         color = malloc(sizeof(SDL_Color));
+         color->r = 0;
+         color->g = 0;
+         color->b = 255;
+         color->a = 255;
+      }
+      else
+      {
+         color = NULL;
+      }
       position.y = y;
-      renderWidgetText(display->tampon[i], NULL, TEXT_SIZE, display->renderer, &position);
+      SDL_Texture *text = renderWidgetText(display->tampon[i], color, TEXT_SIZE, display->renderer, &position);
+      SDL_RenderCopy(display->renderer, text, NULL, &position);
+      SDL_DestroyTexture(text);
       y += TEXT_SIZE;
    }
 }
 
-void renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect)
+SDL_Texture *renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect)
 {
    // Color
    if (color == NULL)
@@ -263,8 +311,104 @@ void renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL_Rendere
    SDL_FreeSurface(surf);
    TTF_CloseFont(font);
    // Return the texture
-   SDL_RenderCopy(renderer, texture, NULL, dstrect);
+   return texture;
+}
+
+void displayInterface(DISPLAY *display, BUTTON *buttonList)
+{
+   SDL_RenderClear(display->renderer);
+   // Render the background
+   SDL_Rect header = {0, 0, WINDOW_WIDTH, HEADER_HEIGHT};
+   SDL_Rect body = {0, HEADER_HEIGHT, WINDOW_WIDTH, BODY_HEIGHT};
+   SDL_Rect footer = {0, WINDOW_HEIGHT - FOOTER_HEIGHT, WINDOW_WIDTH, FOOTER_HEIGHT};
+   SDL_Rect list = {WINDOW_WIDTH - LIST_WIDTH, HEADER_HEIGHT, LIST_WIDTH, BODY_HEIGHT};
+   SDL_Rect inputField = {10, WINDOW_HEIGHT - FOOTER_HEIGHT + 10, WINDOW_WIDTH - 20, TEXT_SIZE + 10};
+   SDL_Color black = {0, 0, 0, 255};
+   SDL_SetRenderDrawColor(display->renderer, 80, 80, 80, 255);
+   SDL_RenderFillRect(display->renderer, &header);
+   SDL_SetRenderDrawColor(display->renderer, 190, 190, 190, 255);
+   SDL_RenderFillRect(display->renderer, &body);
+   SDL_SetRenderDrawColor(display->renderer, 100, 100, 100, 255);
+   SDL_RenderFillRect(display->renderer, &footer);
+   SDL_SetRenderDrawColor(display->renderer, 255, 255, 255, 255);
+   SDL_RenderFillRect(display->renderer, &inputField);
+   SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
+   SDL_RenderFillRect(display->renderer, &list);
+   // Render the text
+   inputField.y += 6;
+   inputField.x += 10;
+   SDL_Texture *texture = renderWidgetText(display->prefix, &black, TEXT_SIZE, display->renderer, &inputField);
+   SDL_RenderCopy(display->renderer, texture, NULL, &inputField);
+   inputField.x += inputField.w + 10;
+   SDL_Texture *inputText = NULL;
+   if (strlen(display->inputText) > 0)
+      inputText = renderWidgetText(display->inputText, &black, TEXT_SIZE, display->renderer, &inputField);
+   SDL_RenderCopy(display->renderer, inputText, NULL, &inputField);
+   if (display->logged == 1)
+   {
+      // Display connected as ...
+      SDL_Rect connectedAs = {10, HEADER_HEIGHT - 10 - TEXT_SIZE, 0, 0};
+      char *connectedAsText = malloc(LG_MESSAGE * sizeof(char));
+      sprintf(connectedAsText, "Connected as %s", display->login);
+      texture = renderWidgetText(connectedAsText, &black, TEXT_SIZE, display->renderer, &connectedAs);
+      SDL_RenderCopy(display->renderer, texture, NULL, &connectedAs);
+      // Display the list
+      SDL_Rect listItem = {WINDOW_WIDTH - LIST_WIDTH + 10, HEADER_HEIGHT + 10, LIST_WIDTH - 20, TEXT_SIZE};
+      USER *user = display->users;
+      SDL_Color color = {255, 255, 255, 255};
+      while (user != NULL)
+      {
+         if (user->hover) {
+            color.r = 255;
+            color.g = 255;
+            color.b = 255;
+            color.a = 255;
+         }
+         else {
+            color.r = 200;
+            color.g = 200;
+            color.b = 200;
+            color.a = 255;
+         }
+         texture = renderWidgetText(user->login, &color, TEXT_SIZE, display->renderer, &listItem);
+         SDL_RenderCopy(display->renderer, texture, NULL, &listItem);
+         user->rect = listItem;
+         listItem.y += TEXT_SIZE + 10;
+         user = user->next;
+      }
+      // Display the buttons
+      BUTTON *tmp = buttonList;
+      SDL_Rect button = {10, WINDOW_HEIGHT - 20, WINDOW_WIDTH - 20, TEXT_SIZE + 10};
+      while (tmp != NULL)
+      {
+         if (tmp->visible)
+         {
+
+            texture = renderWidgetText(tmp->text, &black, TEXT_SIZE, display->renderer, &button);
+            SDL_Rect buttonFrame = {button.x - 5, button.y - 5, button.w + 10, button.h + 10};
+            tmp->rect = buttonFrame;
+            if (tmp->clicked)
+            {
+               SDL_SetRenderDrawColor(display->renderer, 150, 150, 150, 225);
+            }
+            else if (tmp->hover)
+            {
+               SDL_SetRenderDrawColor(display->renderer, 255, 255, 255, 225);
+            }
+            else
+            {
+               SDL_SetRenderDrawColor(display->renderer, 200, 200, 200, 255);
+            }
+            SDL_RenderFillRect(display->renderer, &buttonFrame);
+            SDL_RenderCopy(display->renderer, texture, NULL, &button);
+            button.x += buttonFrame.w + 10;
+         }
+         tmp = tmp->next;
+      }
+   }
+   displayTampon(display);
    SDL_DestroyTexture(texture);
+   SDL_DestroyTexture(inputText);
 }
 
 bool handleInput(DISPLAY *display, SDL_Event event)
@@ -273,9 +417,8 @@ bool handleInput(DISPLAY *display, SDL_Event event)
    if (event.key.keysym.sym == SDLK_CAPSLOCK)
    {
       display->shift = !display->shift;
-      printf("%s", display->shift ? "true" : "false");
    }
-   if (event.key.keysym.sym >= SDLK_SPACE && event.key.keysym.sym <= SDLK_z)
+   else if (event.key.keysym.sym >= SDLK_SPACE && event.key.keysym.sym <= SDLK_z)
    {
       if (display->shift)
       {
@@ -327,7 +470,7 @@ bool handleInput(DISPLAY *display, SDL_Event event)
          case SDLK_2:
             key[0] = 233; //é
             printf("%c", key[0]);
-            //printf("%d", key[0]);
+            // printf("%d", key[0]);
             break;
          case SDLK_3:
             key[0] = '"';
@@ -362,14 +505,172 @@ bool handleInput(DISPLAY *display, SDL_Event event)
       strcat(display->inputText, key);
    }
 
-   if (event.key.keysym.sym == SDLK_BACKSPACE)
+   else if (event.key.keysym.sym == SDLK_BACKSPACE)
    {
       display->inputText[strlen(display->inputText) - 1] = '\0';
    }
-   if (event.key.keysym.sym == SDLK_RETURN)
+   else if (event.key.keysym.sym == SDLK_UP)
    {
-      return true;
+      if (display->tampon_cursor < display->tampon_length - TAMPON_CURSOR_SIZE)
+         display->tampon_cursor++;
    }
-   //printf("%s\n", display->inputText);
+   else if (event.key.keysym.sym == SDLK_DOWN)
+   {
+      if (display->tampon_cursor > 0)
+         display->tampon_cursor--;
+   }
+   else if (event.key.keysym.sym == SDLK_RETURN)
+   {
+      if (strlen(display->inputText) > 0)
+      {
+         return true;
+      }
+   }
+   // printf("%s\n", display->inputText);
    return false;
+}
+
+BUTTON *createButton(char *text, bool cliked, bool hover, bool visible, bool enabled, BUTTON *buttonList, void (*callback)(DISPLAY *))
+{
+   BUTTON *button = malloc(sizeof(BUTTON));
+   button->text = text;
+   button->clicked = cliked;
+   button->hover = hover;
+   button->visible = visible;
+   button->enabled = enabled;
+   button->next = buttonList;
+   button->callback = callback;
+   return button;
+}
+
+void askForUserList(DISPLAY *display)
+{
+   char messageEnvoi[LG_MESSAGE] = "";
+   strcpy(messageEnvoi, "/users");
+   write(display->socket, messageEnvoi, LG_MESSAGE);
+}
+
+void checkHoverUser(DISPLAY *display, SDL_Event event) {
+   if (display->users != NULL) {
+      USER *tmp = display->users;
+      SDL_Point mouse = {event.button.x, event.button.y};
+      while (tmp != NULL) {
+         if(SDL_PointInRect(&mouse, &tmp->rect)) {
+            tmp->hover = true;
+         } else {
+            tmp->hover = false;
+         }
+         tmp = tmp->next;
+      }
+   }
+}
+
+void checkClickUser(DISPLAY *display, SDL_Event event) {
+   if (display->users != NULL) {
+      USER *tmp = display->users;
+      SDL_Point mouse = {event.button.x, event.button.y};
+      while (tmp != NULL) {
+         if(SDL_PointInRect(&mouse, &tmp->rect)) {
+            strcpy(display->prefix, "/mp ");
+            strcat(display->prefix, tmp->login);
+            strcat(display->inputText, "");
+         }
+         tmp = tmp->next;
+      }
+   }
+}
+
+void checkOverButton(BUTTON *buttonList, SDL_Event event)
+{
+   BUTTON *tmp = buttonList;
+   while (tmp != NULL)
+   {
+      if (tmp->visible && tmp->enabled)
+      {
+         SDL_Point point = {event.motion.x, event.motion.y};
+         if (SDL_PointInRect(&point, &tmp->rect))
+         {
+            tmp->hover = true;
+         }
+         else
+         {
+            tmp->hover = false;
+         }
+      }
+      tmp->clicked = false;
+      tmp = tmp->next;
+   }
+}
+
+void checkClickButton(BUTTON *buttonList, SDL_Event event, DISPLAY *display)
+{
+   BUTTON *tmp = buttonList;
+   while (tmp != NULL)
+   {
+      if (tmp->visible && tmp->enabled)
+      {
+         SDL_Point point = {event.motion.x, event.motion.y};
+         if (SDL_PointInRect(&point, &tmp->rect))
+         {
+            tmp->clicked = true;
+            tmp->callback(display);
+         }
+         else
+         {
+            tmp->clicked = false;
+         }
+      }
+      tmp = tmp->next;
+   }
+}
+
+void sendMessage(DISPLAY *display)
+{
+   char messageEnvoi[LG_MESSAGE] = "";
+   strcpy(messageEnvoi, display->prefix);
+   strcat(messageEnvoi, " ");
+   strcat(messageEnvoi, display->inputText);
+   char printMessage[LG_MESSAGE] = "";
+   if (strcmp(display->prefix, "/mg") == 0)
+   {
+      strcpy(printMessage, display->login);
+      strcat(printMessage, " : ");
+      strcat(printMessage, display->inputText);
+      addInTampon(display, printMessage);
+   }
+   else if (strstr(display->prefix, "/mp") != NULL)
+   {
+      strcpy(printMessage, display->login);
+      char * tmp = malloc(sizeof(char) * LG_MESSAGE);
+      strcpy(tmp, display->prefix);
+      char * strToken = strtok(tmp, " ");
+      strToken = strtok(NULL, " ");
+      strcat(printMessage, " -> ");
+      strcat(printMessage, strToken);
+      strcat(printMessage, " : ");
+      strcat(printMessage, display->inputText);
+      addInTampon(display, printMessage);
+   }
+   else if (strcmp(display->prefix, "/login") == 0)
+   {
+      strcpy(display->login, display->inputText);
+   }
+   send(display->socket, messageEnvoi, LG_MESSAGE, 0);
+   strcpy(display->inputText, "");
+}
+
+USER *freeUserList(USER *userList)
+{
+   if (userList != NULL)
+   {
+      USER *tmp = userList;
+      USER *tmp2 = NULL;
+      while (tmp != NULL)
+      {
+         tmp2 = tmp->next;
+         free(tmp);
+         tmp = tmp2;
+      }
+   }
+   return NULL;
 }

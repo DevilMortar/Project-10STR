@@ -15,12 +15,6 @@ int main(int argc, char *argv[])
    system("clear");
    checkArguments(argc, argv);
    int port = atoi(argv[2]);
-   char test[LG_MESSAGE];
-   strcpy(test, "éèà");
-   printf("%s\n", test);
-   printf("%d", test[0]);
-
-   printf("%d", SDLK_ESCAPE);
 
    int descripteurSocket;
    struct sockaddr_in pointDeRencontreDistant;
@@ -65,6 +59,7 @@ int main(int argc, char *argv[])
    /* ---------------- Display --------------- */
    DISPLAY *display = malloc(sizeof(DISPLAY));
    initDisplay(display);
+   display->socket = descripteurSocket;
 
    memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
    memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
@@ -72,8 +67,17 @@ int main(int argc, char *argv[])
    strcat(messageEnvoi, VERSION);
    send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
 
+   /* ---------------- BUTTON --------------- */
+   BUTTON *buttonList = NULL;
+   void (*users)(DISPLAY *);
+   users = askForUserList;
+   buttonList = createButton("/users", 0, 0, 1, 1, buttonList, users);
+
    while (display->running)
    {
+      // Initialise à 0 les messages
+      memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
+      memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
       SDL_Event event;
       while (SDL_PollEvent(&event))
       {
@@ -84,19 +88,22 @@ int main(int argc, char *argv[])
             break;
 
          case SDL_KEYDOWN:
-            if(handleInput(display, event))
+            if (handleInput(display, event))
             {
-               send(descripteurSocket, display->inputText, LG_MESSAGE, 0);
-               addInTampon(display, display->inputText);
-               strcpy(display->inputText, ""); 
+               sendMessage(display);
             }
+            break;
+         case SDL_MOUSEBUTTONDOWN:
+            checkClickButton(buttonList, event, display);
+            checkClickUser(display, event);
+            break;
+         default:
+            checkOverButton(buttonList, event);
+            checkHoverUser(display, event);
             break;
          }
       }
 
-      // Initialise à 0 les messages
-      memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-      memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
       poll(poll_struct->poll_set, poll_struct->numfds, -1);
       for (int fd_index = 0; fd_index < poll_struct->numfds; fd_index++)
       {
@@ -139,10 +146,7 @@ int main(int argc, char *argv[])
          }
       }
       SDL_RenderClear(display->renderer);
-      SDL_Rect inputRect = {0, WINDOW_HEIGHT-TEXT_SIZE, 0, 0};
-      if (strlen(display->inputText) > 0)
-      renderWidgetText(display->inputText, NULL, TEXT_SIZE, display->renderer, &inputRect);
-      displayTampon(display);
+      displayInterface(display, buttonList);
       SDL_RenderPresent(display->renderer);
    }
    close(descripteurSocket);
