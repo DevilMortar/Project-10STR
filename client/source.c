@@ -35,6 +35,9 @@ void initDisplay(DISPLAY *display)
    display->shift = 0;
    display->prefix = malloc(sizeof(char) * LG_MESSAGE);
    display->login = malloc(sizeof(char) * LG_MESSAGE);
+   display->filter = malloc(sizeof(char) * LG_MESSAGE);
+   strcpy(display->filter, "");
+   display->filterActive = 0;
    display->users = NULL;
    strcpy(display->prefix, "/login");
    display->logged = 0;
@@ -227,190 +230,6 @@ void clearTampon(DISPLAY *display)
    display->tampon_length = 0;
 }
 
-void displayTampon(DISPLAY *display)
-{
-   SDL_Rect position = {5, 0, 0, 0};
-   int max = 0;
-   int index = display->tampon_cursor;
-   if (display->tampon_length - index > TAMPON_CURSOR_SIZE)
-   {
-      max = index + TAMPON_CURSOR_SIZE;
-   }
-   else
-   {
-      max = display->tampon_length;
-   }
-   int y = HEADER_HEIGHT + 10;
-   for (int i = max - 1; i >= index; i--)
-   {
-      SDL_Color *color;
-      if (strstr(display->tampon[i], "ERROR") != NULL)
-      {
-         color = malloc(sizeof(SDL_Color));
-         color->r = 255;
-         color->g = 0;
-         color->b = 0;
-         color->a = 255;
-      }
-      else if (strstr(display->tampon[i], "->") != NULL && strstr(display->tampon[i], ":") != NULL)
-      {
-         color = malloc(sizeof(SDL_Color));
-         color->r = 0;
-         color->g = 0;
-         color->b = 255;
-         color->a = 255;
-      }
-      else
-      {
-         color = NULL;
-      }
-      position.y = y;
-      SDL_Texture *text = renderWidgetText(display->tampon[i], color, TEXT_SIZE, display->renderer, &position);
-      SDL_RenderCopy(display->renderer, text, NULL, &position);
-      SDL_DestroyTexture(text);
-      y += TEXT_SIZE;
-   }
-}
-
-SDL_Texture *renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect)
-{
-   // Color
-   if (color == NULL)
-   {
-      color = malloc(sizeof(SDL_Color));
-      color->r = 255;
-      color->g = 255;
-      color->b = 255;
-   }
-   color->a = 255;
-   // Open the font
-   TTF_Font *font = TTF_OpenFont("police.ttf", fontSize); // Open the font you want
-   if (font == NULL)
-   {
-      SDL_ExitWithError("SDL || TTF_OpenFont");
-      return NULL;
-   }
-   // Render the text to a surface
-   SDL_Surface *surf = TTF_RenderText_Solid(font, message, *color);
-   if (surf == NULL)
-   {
-      TTF_CloseFont(font);
-      SDL_ExitWithError("SDL || TTF_RenderText");
-      return NULL;
-   }
-   // Create a texture from the surface
-   SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surf);
-   if (texture == NULL)
-   {
-      SDL_ExitWithError("SDL || CreateTexture");
-   }
-   // Take the size
-   dstrect->w = surf->w;
-   dstrect->h = surf->h;
-   // Clean up the surface and font
-   SDL_FreeSurface(surf);
-   TTF_CloseFont(font);
-   // Return the texture
-   return texture;
-}
-
-void displayInterface(DISPLAY *display, BUTTON *buttonList)
-{
-   SDL_RenderClear(display->renderer);
-   // Render the background
-   SDL_Rect header = {0, 0, WINDOW_WIDTH, HEADER_HEIGHT};
-   SDL_Rect body = {0, HEADER_HEIGHT, WINDOW_WIDTH, BODY_HEIGHT};
-   SDL_Rect footer = {0, WINDOW_HEIGHT - FOOTER_HEIGHT, WINDOW_WIDTH, FOOTER_HEIGHT};
-   SDL_Rect list = {WINDOW_WIDTH - LIST_WIDTH, HEADER_HEIGHT, LIST_WIDTH, BODY_HEIGHT};
-   SDL_Rect inputField = {10, WINDOW_HEIGHT - FOOTER_HEIGHT + 10, WINDOW_WIDTH - 20, TEXT_SIZE + 10};
-   SDL_Color black = {0, 0, 0, 255};
-   SDL_SetRenderDrawColor(display->renderer, 80, 80, 80, 255);
-   SDL_RenderFillRect(display->renderer, &header);
-   SDL_SetRenderDrawColor(display->renderer, 190, 190, 190, 255);
-   SDL_RenderFillRect(display->renderer, &body);
-   SDL_SetRenderDrawColor(display->renderer, 100, 100, 100, 255);
-   SDL_RenderFillRect(display->renderer, &footer);
-   SDL_SetRenderDrawColor(display->renderer, 255, 255, 255, 255);
-   SDL_RenderFillRect(display->renderer, &inputField);
-   SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
-   SDL_RenderFillRect(display->renderer, &list);
-   // Render the text
-   inputField.y += 6;
-   inputField.x += 10;
-   SDL_Texture *texture = renderWidgetText(display->prefix, &black, TEXT_SIZE, display->renderer, &inputField);
-   SDL_RenderCopy(display->renderer, texture, NULL, &inputField);
-   inputField.x += inputField.w + 10;
-   SDL_Texture *inputText = NULL;
-   if (strlen(display->inputText) > 0)
-      inputText = renderWidgetText(display->inputText, &black, TEXT_SIZE, display->renderer, &inputField);
-   SDL_RenderCopy(display->renderer, inputText, NULL, &inputField);
-   if (display->logged == 1)
-   {
-      // Display connected as ...
-      SDL_Rect connectedAs = {10, HEADER_HEIGHT - 10 - TEXT_SIZE, 0, 0};
-      char *connectedAsText = malloc(LG_MESSAGE * sizeof(char));
-      sprintf(connectedAsText, "Connected as %s", display->login);
-      texture = renderWidgetText(connectedAsText, &black, TEXT_SIZE, display->renderer, &connectedAs);
-      SDL_RenderCopy(display->renderer, texture, NULL, &connectedAs);
-      // Display the list
-      SDL_Rect listItem = {WINDOW_WIDTH - LIST_WIDTH + 10, HEADER_HEIGHT + 10, LIST_WIDTH - 20, TEXT_SIZE};
-      USER *user = display->users;
-      SDL_Color color = {255, 255, 255, 255};
-      while (user != NULL)
-      {
-         if (user->hover) {
-            color.r = 255;
-            color.g = 255;
-            color.b = 255;
-            color.a = 255;
-         }
-         else {
-            color.r = 200;
-            color.g = 200;
-            color.b = 200;
-            color.a = 255;
-         }
-         texture = renderWidgetText(user->login, &color, TEXT_SIZE, display->renderer, &listItem);
-         SDL_RenderCopy(display->renderer, texture, NULL, &listItem);
-         user->rect = listItem;
-         listItem.y += TEXT_SIZE + 10;
-         user = user->next;
-      }
-      // Display the buttons
-      BUTTON *tmp = buttonList;
-      SDL_Rect button = {10, WINDOW_HEIGHT - 20, WINDOW_WIDTH - 20, TEXT_SIZE + 10};
-      while (tmp != NULL)
-      {
-         if (tmp->visible)
-         {
-
-            texture = renderWidgetText(tmp->text, &black, TEXT_SIZE, display->renderer, &button);
-            SDL_Rect buttonFrame = {button.x - 5, button.y - 5, button.w + 10, button.h + 10};
-            tmp->rect = buttonFrame;
-            if (tmp->clicked)
-            {
-               SDL_SetRenderDrawColor(display->renderer, 150, 150, 150, 225);
-            }
-            else if (tmp->hover)
-            {
-               SDL_SetRenderDrawColor(display->renderer, 255, 255, 255, 225);
-            }
-            else
-            {
-               SDL_SetRenderDrawColor(display->renderer, 200, 200, 200, 255);
-            }
-            SDL_RenderFillRect(display->renderer, &buttonFrame);
-            SDL_RenderCopy(display->renderer, texture, NULL, &button);
-            button.x += buttonFrame.w + 10;
-         }
-         tmp = tmp->next;
-      }
-   }
-   displayTampon(display);
-   SDL_DestroyTexture(texture);
-   SDL_DestroyTexture(inputText);
-}
-
 bool handleInput(DISPLAY *display, SDL_Event event)
 {
    char key[2];
@@ -550,38 +369,89 @@ void askForUserList(DISPLAY *display)
    write(display->socket, messageEnvoi, LG_MESSAGE);
 }
 
-void checkHoverUser(DISPLAY *display, SDL_Event event) {
-   if (display->users != NULL) {
-      USER *tmp = display->users;
-      SDL_Point mouse = {event.button.x, event.button.y};
-      while (tmp != NULL) {
-         if(SDL_PointInRect(&mouse, &tmp->rect)) {
-            tmp->hover = true;
-         } else {
-            tmp->hover = false;
-         }
-         tmp = tmp->next;
-      }
-   }
-}
-
-void checkClickUser(DISPLAY *display, SDL_Event event) {
-   if (display->users != NULL) {
-      USER *tmp = display->users;
-      SDL_Point mouse = {event.button.x, event.button.y};
-      while (tmp != NULL) {
-         if(SDL_PointInRect(&mouse, &tmp->rect)) {
-            strcpy(display->prefix, "/mp ");
-            strcat(display->prefix, tmp->login);
-            strcat(display->inputText, "");
-         }
-         tmp = tmp->next;
-      }
-   }
-}
-
-void checkOverButton(BUTTON *buttonList, SDL_Event event)
+void leaveChat(DISPLAY *display)
 {
+   char messageEnvoi[LG_MESSAGE] = "";
+   strcpy(messageEnvoi, "/mg ");
+   strcat(messageEnvoi, display->login);
+   strcat(messageEnvoi, " left the chat");
+   write(display->socket, messageEnvoi, LG_MESSAGE);
+   display->logged = 0;
+   display->running = 0;
+}
+
+void switchToMg(DISPLAY *display)
+{
+   strcpy(display->inputText, "");
+   strcpy(display->prefix, "/mg");
+   display->filterActive = false;
+   strcpy(display->filter, "");
+}
+
+bool checkHoverUser(DISPLAY *display, SDL_Event event)
+{
+   bool action = false;
+   if (display->users != NULL)
+   {
+      USER *tmp = display->users;
+      SDL_Point mouse = {event.button.x, event.button.y};
+      while (tmp != NULL)
+      {
+         if (SDL_PointInRect(&mouse, &tmp->rect))
+         {
+            if (!tmp->hover)
+            {
+               tmp->hover = true;
+               action = true;
+            }
+         }
+         else if (tmp->hover)
+         {
+            tmp->hover = false;
+            action = true;
+         }
+         tmp = tmp->next;
+      }
+   }
+   return action;
+}
+
+bool checkClickUser(DISPLAY *display, SDL_Event event)
+{
+   bool action = false;
+   if (display->users != NULL)
+   {
+      USER *tmp = display->users;
+      SDL_Point mouse = {event.button.x, event.button.y};
+      while (tmp != NULL)
+      {
+         if (SDL_PointInRect(&mouse, &tmp->rect))
+         {
+            action = true;
+            if (strcmp(display->filter, tmp->login) != 0)
+            {
+               strcpy(display->prefix, "/mp ");
+               strcat(display->prefix, tmp->login);
+               strcat(display->inputText, "");
+               display->filterActive = true;
+               strcpy(display->filter, tmp->login);
+            }
+            else
+            {
+               strcpy(display->prefix, "/mg");
+               display->filterActive = false;
+               strcpy(display->filter, "");
+            }
+         }
+         tmp = tmp->next;
+      }
+   }
+   return action;
+}
+
+bool checkHoverButton(BUTTON *buttonList, SDL_Event event)
+{
+   bool action = false;
    BUTTON *tmp = buttonList;
    while (tmp != NULL)
    {
@@ -590,20 +460,27 @@ void checkOverButton(BUTTON *buttonList, SDL_Event event)
          SDL_Point point = {event.motion.x, event.motion.y};
          if (SDL_PointInRect(&point, &tmp->rect))
          {
-            tmp->hover = true;
+            if (!tmp->hover)
+            {
+               tmp->hover = true;
+               action = true;
+            }
          }
-         else
+         else if (tmp->hover)
          {
             tmp->hover = false;
+            action = true;
          }
       }
       tmp->clicked = false;
       tmp = tmp->next;
    }
+   return action;
 }
 
-void checkClickButton(BUTTON *buttonList, SDL_Event event, DISPLAY *display)
+bool checkClickButton(BUTTON *buttonList, SDL_Event event, DISPLAY *display)
 {
+   bool action = false;
    BUTTON *tmp = buttonList;
    while (tmp != NULL)
    {
@@ -615,13 +492,15 @@ void checkClickButton(BUTTON *buttonList, SDL_Event event, DISPLAY *display)
             tmp->clicked = true;
             tmp->callback(display);
          }
-         else
+         else if (tmp->clicked)
          {
             tmp->clicked = false;
+            action = true;
          }
       }
       tmp = tmp->next;
    }
+   return action;
 }
 
 void sendMessage(DISPLAY *display)
@@ -641,9 +520,9 @@ void sendMessage(DISPLAY *display)
    else if (strstr(display->prefix, "/mp") != NULL)
    {
       strcpy(printMessage, display->login);
-      char * tmp = malloc(sizeof(char) * LG_MESSAGE);
+      char *tmp = malloc(sizeof(char) * LG_MESSAGE);
       strcpy(tmp, display->prefix);
-      char * strToken = strtok(tmp, " ");
+      char *strToken = strtok(tmp, " ");
       strToken = strtok(NULL, " ");
       strcat(printMessage, " -> ");
       strcat(printMessage, strToken);
