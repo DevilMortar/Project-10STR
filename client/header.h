@@ -51,6 +51,8 @@ struct DISPLAY
    char * login;
    char * inputText;
    char * prefix;
+   bool filterActive;
+   char * filter;
    bool logged;
    bool shift;
    int socket;
@@ -81,16 +83,23 @@ struct POLL
 void initDisplay(DISPLAY *display);
 void SDL_ExitWithError(const char *message);
 void displayTampon(DISPLAY *display);
+void displayTamponFiltered(DISPLAY *display);
 SDL_Texture * renderWidgetText(char *message, SDL_Color* color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect);
-void displayInterface(DISPLAY *display, BUTTON *buttonList);
+void displayBackground(DISPLAY *display);
+void displayButtons(DISPLAY *display, BUTTON *buttonsList);
+void displayUserList(DISPLAY *display);
+void displayUserName(DISPLAY *display);
+void displayInputField(DISPLAY *display);
 
 //Button
 BUTTON * createButton(char *text, bool cliked, bool hover, bool visible, bool enabled, BUTTON *buttonList, void (*callback)(DISPLAY *));
-void checkOverButton(BUTTON * buttonList, SDL_Event event);
-void checkClickButton(BUTTON * buttonList, SDL_Event event, DISPLAY *display);
+bool checkHoverButton(BUTTON * buttonList, SDL_Event event);
+bool checkClickButton(BUTTON * buttonList, SDL_Event event, DISPLAY *display);
 void askForUserList(DISPLAY *display);
-void checkHoverUser(DISPLAY *display, SDL_Event event);
-void checkClickUser(DISPLAY *display, SDL_Event event);
+void leaveChat(DISPLAY *display);
+void switchToMg(DISPLAY *display);
+bool checkHoverUser(DISPLAY *display, SDL_Event event);
+bool checkClickUser(DISPLAY *display, SDL_Event event);
 
 
 
