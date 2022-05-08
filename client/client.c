@@ -71,10 +71,23 @@ int main(int argc, char *argv[])
    BUTTON *buttonList = NULL;
    void (*users)(DISPLAY *);
    users = askForUserList;
+   void (*mg)(DISPLAY *);
+   mg = switchToMg;
+   void(*leave)(DISPLAY *);
+   leave = leaveChat;
    buttonList = createButton("/users", 0, 0, 1, 1, buttonList, users);
+   buttonList = createButton("/mg", 0, 1, 1, 1, buttonList, mg);
+   buttonList = createButton("/leave", 0, 2, 1, 1, buttonList, leave);
+   
+   /* ---------------- SETTINGS --------------- */
+   bool needToUpdate = false;
+
+   /* ---------------- MAIN LOOP --------------- */
 
    while (display->running)
    {
+      // Update
+      needToUpdate = false;
       // Initialise à 0 les messages
       memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
       memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
@@ -92,14 +105,16 @@ int main(int argc, char *argv[])
             {
                sendMessage(display);
             }
+            needToUpdate = true;
             break;
          case SDL_MOUSEBUTTONDOWN:
-            checkClickButton(buttonList, event, display);
-            checkClickUser(display, event);
+            needToUpdate = needToUpdate | checkClickButton(buttonList, event, display);
+            needToUpdate = needToUpdate | checkClickUser(display, event);
+            needToUpdate = true;
             break;
          default:
-            checkOverButton(buttonList, event);
-            checkHoverUser(display, event);
+            needToUpdate = needToUpdate | checkHoverButton(buttonList, event);
+            needToUpdate = needToUpdate | checkHoverUser(display, event);
             break;
          }
       }
@@ -122,34 +137,31 @@ int main(int argc, char *argv[])
             else
             {
                handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, display);
+               needToUpdate = true;
             }
-         }
-         else if (poll_struct->poll_set[fd_index].revents & POLLOUT)
-         {
-            /*
-            fgets(messageEnvoi, LG_MESSAGE, stdin);
-            ecrits = send(descripteurSocket, messageEnvoi, strlen(messageEnvoi), 0);
-            if (ecrits < 0)
-            {
-               exit(-4);
-            }
-            else if (ecrits == 0)
-            {
-               printf("Le processus distant a été fermé !\n");
-               exit(0);
-            }
-            else
-            {
-               printf("Message envoyé : %s\n", messageEnvoi);
-            }
-            */
          }
       }
-      SDL_RenderClear(display->renderer);
-      displayInterface(display, buttonList);
-      SDL_RenderPresent(display->renderer);
+      if (needToUpdate)
+      {
+         // Display
+         SDL_RenderClear(display->renderer);
+         displayBackground(display);
+         if (display->filterActive) {
+            displayTamponFiltered(display);
+         }
+         else {
+            displayTampon(display);
+         }
+         displayInputField(display);
+         if (display->logged) {
+            displayUserName(display);
+            displayUserList(display);
+            displayButtons(display, buttonList);
+         }
+         SDL_RenderPresent(display->renderer);
+      }
    }
-   close(descripteurSocket);
+   freeUserList(display->users);
    SDL_Quit();
    return 0;
 }
