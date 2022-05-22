@@ -72,7 +72,7 @@ int main(int argc, char *argv[])
             {
                socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
                checkSocketDialogue(socketDialogue, socketEcoute);
-               newUser(contact, pointDeRencontreDistant, socketDialogue, &id);
+               newUser(contact, socketDialogue, &id);
                printConnected(contact->first);
             }
             else
@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
                      tmp = tmp->suiv;
                   }
                   if (strcmp(messageRecu, "\n\0") != 0) {
-                     printf("MESSAGE | %s (%d) : %s\n", tmp->login, tmp->socketClient, messageRecu);
-                     handleMessage(messageRecu, messageEnvoi, contact->poll_set[fd_index].fd, contact, fd_index);
+                     printf("\nMESSAGE | %s (%d) : %s\n", tmp->login, tmp->socketClient, messageRecu);
+                     handleMessage(messageRecu, messageEnvoi, contact->poll_set[fd_index].fd, contact, fd_index, greating);
                   }
                   continue;
                }

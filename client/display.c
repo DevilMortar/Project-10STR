@@ -1,5 +1,40 @@
 #include "header.h"
 
+SDL_Color *colorMessage(char *message)
+{
+    SDL_Color *color;
+    color = malloc(sizeof(SDL_Color));
+    if (strstr(message, "ERROR") != NULL && strstr(message, ":") == NULL)
+    {
+        color->r = 255;
+        color->g = 0;
+        color->b = 0;
+        color->a = 255;
+    }
+    else if (strstr(message, "->") < strstr(message, ":") && strstr(message, "->") != NULL)
+    {
+        color->r = 0;
+        color->g = 0;
+        color->b = 150;
+        color->a = 255;
+    }
+    else if (strstr(message, "STATUS") < strstr(message, ":") && strstr(message, "STATUS") != NULL)
+    {
+        color->r = 0;
+        color->g = 150;
+        color->b = 0;
+        color->a = 255;
+    }
+    else
+    {
+        color->r = 0;
+        color->g = 0;
+        color->b = 0;
+        color->a = 255;
+    }
+    return color;
+}
+
 void displayTampon(DISPLAY *display)
 {
     SDL_Rect position = {5, 0, 0, 0};
@@ -16,32 +51,12 @@ void displayTampon(DISPLAY *display)
     int y = HEADER_HEIGHT + 10;
     for (int i = max - 1; i >= index; i--)
     {
-        SDL_Color *color;
-        if (strstr(display->tampon[i], "ERROR") != NULL)
-        {
-            color = malloc(sizeof(SDL_Color));
-            color->r = 255;
-            color->g = 0;
-            color->b = 0;
-            color->a = 255;
-        }
-        else if (strstr(display->tampon[i], "->") != NULL && strstr(display->tampon[i], ":") != NULL)
-        {
-            color = malloc(sizeof(SDL_Color));
-            color->r = 0;
-            color->g = 0;
-            color->b = 255;
-            color->a = 255;
-        }
-        else
-        {
-            color = NULL;
-        }
+        SDL_Color *color = colorMessage(display->tampon[i]);
         position.y = y;
         SDL_Texture *text = renderWidgetText(display->tampon[i], color, TEXT_SIZE, display->renderer, &position);
         SDL_RenderCopy(display->renderer, text, NULL, &position);
         SDL_DestroyTexture(text);
-        y += TEXT_SIZE;
+        y += position.h + 10;
     }
 }
 
@@ -49,43 +64,24 @@ void displayTamponFiltered(DISPLAY *display)
 {
     SDL_Rect position = {5, 0, 0, 0};
     int max = 0;
-    int index = display->tampon_cursor;
-    if (display->tampon_length - index > TAMPON_CURSOR_SIZE)
+    int index = display->private_cursor;
+    if (display->private_length - index > TAMPON_CURSOR_SIZE)
     {
         max = index + TAMPON_CURSOR_SIZE;
     }
     else
     {
-        max = display->tampon_length;
+        max = display->private_length;
     }
     int y = HEADER_HEIGHT + 10;
     for (int i = max - 1; i >= index; i--)
     {
-        if (strstr(display->tampon[i], display->filter) != NULL && strstr(display->tampon[i], "->") != NULL && strstr(display->tampon[i], ":") != NULL)
-        {
-            SDL_Color *color;
-            if (strstr(display->tampon[i], "ERROR") != NULL)
-            {
-                color = malloc(sizeof(SDL_Color));
-                color->r = 255;
-                color->g = 0;
-                color->b = 0;
-                color->a = 255;
-            }
-            else
-            {
-                color = malloc(sizeof(SDL_Color));
-                color->r = 0;
-                color->g = 0;
-                color->b = 255;
-                color->a = 255;
-            }
-            position.y = y;
-            SDL_Texture *text = renderWidgetText(display->tampon[i], color, TEXT_SIZE, display->renderer, &position);
-            SDL_RenderCopy(display->renderer, text, NULL, &position);
-            SDL_DestroyTexture(text);
-            y += TEXT_SIZE;
-        }
+        SDL_Color *color = colorMessage(display->private[i]);
+        position.y = y;
+        SDL_Texture *text = renderWidgetText(display->private[i], color, TEXT_SIZE, display -> renderer, &position);
+        SDL_RenderCopy(display->renderer, text, NULL, &position);
+        SDL_DestroyTexture(text);
+        y += position.h + 10;
     }
 }
 
@@ -137,10 +133,13 @@ void displayBackground(DISPLAY *display)
     SDL_Rect header = {0, 0, WINDOW_WIDTH, HEADER_HEIGHT};
     SDL_Rect body = {0, HEADER_HEIGHT, WINDOW_WIDTH, BODY_HEIGHT};
     SDL_Rect footer = {0, WINDOW_HEIGHT - FOOTER_HEIGHT, WINDOW_WIDTH, FOOTER_HEIGHT};
-    SDL_Rect list = {WINDOW_WIDTH - LIST_WIDTH, HEADER_HEIGHT, LIST_WIDTH, BODY_HEIGHT};
+    SDL_Rect list = {WINDOW_WIDTH - LIST_WIDTH, HEADER_HEIGHT + USER_HEIGHT, LIST_WIDTH, BODY_HEIGHT - USER_HEIGHT};
     SDL_Rect inputField = {10, WINDOW_HEIGHT - FOOTER_HEIGHT + 10, WINDOW_WIDTH - 20, TEXT_SIZE + 10};
+    SDL_Rect user = {WINDOW_WIDTH - LIST_WIDTH, HEADER_HEIGHT, LIST_WIDTH, USER_HEIGHT};
+    SDL_Rect image = {0, 0, HEADER_HEIGHT - 10, HEADER_HEIGHT - 10};
     SDL_Color black = {0, 0, 0, 255};
-    SDL_SetRenderDrawColor(display->renderer, 80, 80, 80, 255);
+    SDL_Color orange = {255, 165, 0, 255};
+    SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
     SDL_RenderFillRect(display->renderer, &header);
     SDL_SetRenderDrawColor(display->renderer, 190, 190, 190, 255);
     SDL_RenderFillRect(display->renderer, &body);
@@ -148,8 +147,13 @@ void displayBackground(DISPLAY *display)
     SDL_RenderFillRect(display->renderer, &footer);
     SDL_SetRenderDrawColor(display->renderer, 255, 255, 255, 255);
     SDL_RenderFillRect(display->renderer, &inputField);
-    SDL_SetRenderDrawColor(display->renderer, 0, 0, 0, 255);
+    SDL_SetRenderDrawColor(display->renderer, 255, 165, 0, 255);
+    SDL_RenderFillRect(display->renderer, &user);
+    SDL_SetRenderDrawColor(display->renderer, 80, 80, 80, 255);
     SDL_RenderFillRect(display->renderer, &list);
+    SDL_Texture *logo = IMG_LoadTexture(display->renderer, "logo.png");
+    SDL_RenderCopy(display->renderer, logo, NULL, &image);
+    SDL_DestroyTexture(logo);
 }
 
 void displayButtons(DISPLAY *display, BUTTON *buttonsList)
@@ -190,36 +194,43 @@ void displayButtons(DISPLAY *display, BUTTON *buttonsList)
 void displayUserList(DISPLAY *display)
 {
     // Display the user list
-    SDL_Rect listItem = {WINDOW_WIDTH - LIST_WIDTH + 10, HEADER_HEIGHT + 10, LIST_WIDTH - 20, TEXT_SIZE};
+    SDL_Rect title = {WINDOW_WIDTH - LIST_WIDTH + 10, HEADER_HEIGHT + USER_HEIGHT + 10, LIST_WIDTH, TEXT_SIZE + 10};
+    SDL_Rect listItem = {WINDOW_WIDTH - LIST_WIDTH + 20, USER_HEIGHT + HEADER_HEIGHT + 40, LIST_WIDTH - 20, TEXT_SIZE};
+    SDL_Texture *texture = renderWidgetText("User Connected :", NULL, TEXT_SIZE, display->renderer, &title);
+    SDL_RenderCopy(display->renderer, texture, NULL, &title);
+    SDL_DestroyTexture(texture);
     USER *user = display->users;
     SDL_Color color = {255, 255, 255, 255};
     while (user != NULL)
     {
-        if (strstr(display->filter, user->login) != NULL)
+        if (strstr(display->login, user->login) == NULL)
         {
-            color.r = 255;
-            color.g = 0;
-            color.b = 0;
-            color.a = 255;
+            if (strstr(display->filter, user->login) != NULL)
+            {
+                color.r = 255;
+                color.g = 0;
+                color.b = 0;
+                color.a = 255;
+            }
+            else if (user->hover)
+            {
+                color.r = 255;
+                color.g = 255;
+                color.b = 255;
+                color.a = 255;
+            }
+            else
+            {
+                color.r = 200;
+                color.g = 200;
+                color.b = 200;
+                color.a = 255;
+            }
+            SDL_Texture *texture = renderWidgetText(user->login, &color, TEXT_SIZE, display->renderer, &listItem);
+            SDL_RenderCopy(display->renderer, texture, NULL, &listItem);
+            user->rect = listItem;
+            listItem.y += TEXT_SIZE + 10;
         }
-        else if (user->hover)
-        {
-            color.r = 255;
-            color.g = 255;
-            color.b = 255;
-            color.a = 255;
-        }
-        else
-        {
-            color.r = 200;
-            color.g = 200;
-            color.b = 200;
-            color.a = 255;
-        }
-        SDL_Texture *texture = renderWidgetText(user->login, &color, TEXT_SIZE, display->renderer, &listItem);
-        SDL_RenderCopy(display->renderer, texture, NULL, &listItem);
-        user->rect = listItem;
-        listItem.y += TEXT_SIZE + 10;
         user = user->next;
     }
 }
@@ -227,10 +238,17 @@ void displayUserList(DISPLAY *display)
 void displayUserName(DISPLAY *display)
 {
     // Display connected as ...
-    SDL_Rect connectedAs = {10, HEADER_HEIGHT - 10 - TEXT_SIZE, 0, 0};
+    SDL_Rect connectedAs = {WINDOW_WIDTH - LIST_WIDTH + 10, HEADER_HEIGHT + 10, 0, 0};
     SDL_Color black = {0, 0, 0, 255};
     char *connectedAsText = malloc(LG_MESSAGE * sizeof(char));
-    sprintf(connectedAsText, "Connected as %s", display->login);
+    if (display->logged)
+    {
+        sprintf(connectedAsText, "%s", display->login);
+    }
+    else
+    {
+        strcpy(connectedAsText, "You are not logged in !");
+    }
     SDL_Texture *texture = renderWidgetText(connectedAsText, &black, TEXT_SIZE, display->renderer, &connectedAs);
     SDL_RenderCopy(display->renderer, texture, NULL, &connectedAs);
     SDL_DestroyTexture(texture);

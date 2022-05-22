@@ -15,16 +15,17 @@
 
 #define PORT IPPORT_USERRESERVED // = 5000
 #define LG_MESSAGE 1024
-#define VERSION "1.0.1"
-#define WINDOW_WIDTH 1000
+#define VERSION "0.1c"
+#define WINDOW_WIDTH 1200
 #define WINDOW_HEIGHT 800
 #define HEADER_HEIGHT 80
 #define FOOTER_HEIGHT 100
-#define LIST_WIDTH 200
+#define LIST_WIDTH 220
+#define USER_HEIGHT 40
 #define BODY_HEIGHT (WINDOW_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT)
 #define TEXT_SIZE 20
-#define TAMPON_SIZE 10
-#define TAMPON_CURSOR_SIZE 5
+#define TAMPON_SIZE 200
+#define TAMPON_CURSOR_SIZE 21
 #define goto_x_y(y,x){printf("\033[%u;%uH",y,x);}
 #define color(param) printf("\033[%sm",param)
 #define delete() printf("%c[2K\r\n", 27)
@@ -47,6 +48,10 @@ struct DISPLAY
    char **tampon;
    int tampon_length;
    int tampon_cursor;
+   char **private;
+   char * privateLogin;
+   int private_length;
+   int private_cursor;
    USER * users;
    char * login;
    char * inputText;
@@ -82,6 +87,7 @@ struct POLL
 //Display
 void initDisplay(DISPLAY *display);
 void SDL_ExitWithError(const char *message);
+SDL_Color * colorMessage(char * message);
 void displayTampon(DISPLAY *display);
 void displayTamponFiltered(DISPLAY *display);
 SDL_Texture * renderWidgetText(char *message, SDL_Color* color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect);
@@ -100,6 +106,10 @@ void leaveChat(DISPLAY *display);
 void switchToMg(DISPLAY *display);
 bool checkHoverUser(DISPLAY *display, SDL_Event event);
 bool checkClickUser(DISPLAY *display, SDL_Event event);
+
+//Private
+void getPrivate(DISPLAY * display, char * login);
+void clearPrivate(DISPLAY *display);
 
 
 

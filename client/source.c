@@ -29,17 +29,22 @@ void initDisplay(DISPLAY *display)
    display->tampon = malloc(sizeof(char *) * TAMPON_SIZE);
    display->tampon_length = 0;
    display->tampon_cursor = 0;
+   display->private = malloc(sizeof(char *));
+   display->private_length = 0;
+   display->private_cursor = 0;
+   display->privateLogin = malloc(sizeof(char *));
    display->inputText = malloc(sizeof(char) * LG_MESSAGE);
    strcpy(display->inputText, "");
    display->running = 1;
    display->shift = 0;
    display->prefix = malloc(sizeof(char) * LG_MESSAGE);
+   strcpy(display->prefix, "/login");
    display->login = malloc(sizeof(char) * LG_MESSAGE);
+   strcpy(display->login, "");
    display->filter = malloc(sizeof(char) * LG_MESSAGE);
    strcpy(display->filter, "");
    display->filterActive = 0;
    display->users = NULL;
-   strcpy(display->prefix, "/login");
    display->logged = 0;
 
    for (int i = 0; i < TAMPON_SIZE; i++)
@@ -87,7 +92,9 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          {
             strToken = strtok(NULL, separators);
             strcpy(printMessage, strToken);
-            strcat(printMessage, " to you : ");
+            strcat(printMessage, " -> ");
+            strcat(printMessage, display->login);
+            strcat(printMessage, " : ");
             while (strToken != NULL)
             {
                strToken = strtok(NULL, separators);
@@ -100,6 +107,7 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
             strcat(printMessage, "\n");
             printf("%s", printMessage);
             addInTampon(display, printMessage);
+            getPrivate(display, display->privateLogin);
          }
          else if (strcmp(strToken, "/mg") == 0)
          {
@@ -121,24 +129,26 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
          }
          else if (strcmp(strToken, "/users") == 0)
          {
-            strcat(printMessage, "Users connected :\n");
+            strcat(printMessage, "STATUS | User connected : {\n");
             display->users = freeUserList(display->users);
             while (strToken != NULL)
             {
                strToken = strtok(NULL, separators);
                if (strToken != NULL)
                {
+                  strcat(printMessage, " ");
                   strcat(printMessage, strToken);
                   USER *new = malloc(sizeof(USER));
                   new->login = malloc(sizeof(char) * LG_MESSAGE);
+                  SDL_Rect rect = {0, 0, 0, 0};
+                  new->rect = rect;
                   strcpy(new->login, strToken);
                   new->next = display->users;
                   new->hover = 0;
                   display->users = new;
-                  strcat(printMessage, "\n");
                }
             }
-            printf("%s", printMessage);
+            strcat(printMessage, " }\n");
             addInTampon(display, printMessage);
          }
          else if (strcmp(strToken, "/greating") == 0)
@@ -152,12 +162,11 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
                   strcat(printMessage, " ");
                }
             }
-            strcat(printMessage, "\n");
-            printf("%s", printMessage);
+            addInTampon(display, printMessage);
          }
          else if (strcmp(strToken, "/login") == 0)
          {
-            printf("Choose a login (max 20 characters, no spaces): \n");
+            strcpy(display->prefix, "/login");
             addInTampon(display, "Choose a login (max 20 characters, no spaces): \n");
          }
          else if (strcmp(strToken, "/ret") == 0)
@@ -174,36 +183,68 @@ void codeError(char *strToken, DISPLAY *display)
 {
    if (strcmp(strToken, "400") == 0)
    {
-      addInTampon(display, "ERROR 400 | The request is not unable\n");
+      addInTampon(display, "ERROR 400 | The request is not unable");
    }
 
    else if (strcmp(strToken, "404") == 0)
    {
-      addInTampon(display, "ERROR 404 | User is not found\n");
+      addInTampon(display, "ERROR 404 | User is not found");
+      getPrivate(display, display->privateLogin);
+      askForUserList(display);
+      display->tampon_cursor = 0;
    }
 
    else if (strcmp(strToken, "409") == 0)
    {
-      addInTampon(display, "ERROR 409 | You can't choose this name\n");
+      addInTampon(display, "ERROR 409 | You can't choose this name");
+      strcpy(display->prefix, "/login");
+      addInTampon(display, "Choose a login (max 20 characters, no spaces): \n");
    }
 
    else if (strcmp(strToken, "426") == 0)
    {
-      addInTampon(display, "ERROR 426 | Version need to upgraded\n");
+      addInTampon(display, "ERROR 426 | Version need to upgraded");
+      printf("ERROR 426 | Version need to upgraded\n");
+      display->logged = 0;
+      display->running = 0;
    }
 
    else if (strcmp(strToken, "501") == 0)
    {
-      addInTampon(display, "ERROR 501 | Request is not implemented\n");
+      addInTampon(display, "ERROR 501 | Request is not implemented");
    }
    else if (strcmp(strToken, "200") == 0)
    {
       if (display->logged == 0)
       {
          display->logged = 1;
-         printf("Login successful\n");
          clearTampon(display);
          strcpy(display->prefix, "/mg");
+         askForUserList(display);
+      }
+   }
+}
+
+void getPrivate(DISPLAY *display, char *login)
+{
+   strcpy(display->privateLogin, login);
+   for (int i = display->private_length - 1; i >= 0; i--)
+   {
+      free(display->private[i]);
+   }
+   display->private_length = 0;
+   for (int i = display->tampon_length - 1; i >= 0; i--)
+   {
+      if (strstr(display->tampon[i], login) != NULL && strstr(display->tampon[i], " -> ") != NULL || strcmp(display->tampon[i], "ERROR 404 | User is not found") == 0)
+      {
+         display->private_length++;
+         display->private = realloc(display->private, sizeof(char *) * display->private_length);
+         for (int j = display->private_length - 1; j > 0; j--)
+         {
+            display->private[j] = display->private[j - 1];
+         }
+         display->private[0] = malloc(sizeof(char) * LG_MESSAGE);
+         strcpy(display->private[0], display -> tampon[i]);
       }
    }
 }
@@ -228,6 +269,16 @@ void clearTampon(DISPLAY *display)
       memset(display->tampon[i], 0x00, LG_MESSAGE * sizeof(char));
    }
    display->tampon_length = 0;
+   clearPrivate(display);
+}
+
+void clearPrivate(DISPLAY *display)
+{
+   for (int i = 0; i < display->private_length; i++)
+   {
+      free(display->private[i]);
+   }
+   display->private_length = 0;
 }
 
 bool handleInput(DISPLAY *display, SDL_Event event)
@@ -330,13 +381,29 @@ bool handleInput(DISPLAY *display, SDL_Event event)
    }
    else if (event.key.keysym.sym == SDLK_UP)
    {
-      if (display->tampon_cursor < display->tampon_length - TAMPON_CURSOR_SIZE)
-         display->tampon_cursor++;
+      if (!display->filterActive)
+      {
+         if (display->tampon_cursor < display->tampon_length - TAMPON_CURSOR_SIZE)
+            display->tampon_cursor++;
+      }
+      else
+      {
+         if (display->private_cursor < display->private_length - TAMPON_CURSOR_SIZE)
+            display->private_cursor++;
+      }
    }
    else if (event.key.keysym.sym == SDLK_DOWN)
    {
-      if (display->tampon_cursor > 0)
-         display->tampon_cursor--;
+      if (!display->filterActive)
+      {
+         if (display->tampon_cursor > 0)
+            display->tampon_cursor--;
+      }
+      else
+      {
+         if (display->private_cursor > 0)
+            display->private_cursor--;
+      }  
    }
    else if (event.key.keysym.sym == SDLK_RETURN)
    {
@@ -367,17 +434,9 @@ void askForUserList(DISPLAY *display)
    char messageEnvoi[LG_MESSAGE] = "";
    strcpy(messageEnvoi, "/users");
    write(display->socket, messageEnvoi, LG_MESSAGE);
-}
-
-void leaveChat(DISPLAY *display)
-{
-   char messageEnvoi[LG_MESSAGE] = "";
-   strcpy(messageEnvoi, "/mg ");
-   strcat(messageEnvoi, display->login);
-   strcat(messageEnvoi, " left the chat");
-   write(display->socket, messageEnvoi, LG_MESSAGE);
-   display->logged = 0;
-   display->running = 0;
+   strcpy(display->prefix, "/mg");
+   display->filterActive = false;
+   strcpy(display->filter, "");
 }
 
 void switchToMg(DISPLAY *display)
@@ -386,6 +445,7 @@ void switchToMg(DISPLAY *display)
    strcpy(display->prefix, "/mg");
    display->filterActive = false;
    strcpy(display->filter, "");
+   display->tampon_cursor = 0;
 }
 
 bool checkHoverUser(DISPLAY *display, SDL_Event event)
@@ -434,12 +494,15 @@ bool checkClickUser(DISPLAY *display, SDL_Event event)
                strcat(display->prefix, tmp->login);
                strcat(display->inputText, "");
                display->filterActive = true;
+               display->private_cursor = 0;
                strcpy(display->filter, tmp->login);
+               getPrivate(display, tmp->login);
             }
             else
             {
                strcpy(display->prefix, "/mg");
                display->filterActive = false;
+               display->tampon_cursor = 0;
                strcpy(display->filter, "");
             }
          }
@@ -529,6 +592,7 @@ void sendMessage(DISPLAY *display)
       strcat(printMessage, " : ");
       strcat(printMessage, display->inputText);
       addInTampon(display, printMessage);
+      getPrivate(display, strToken);
    }
    else if (strcmp(display->prefix, "/login") == 0)
    {

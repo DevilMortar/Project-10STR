@@ -61,26 +61,21 @@ int main(int argc, char *argv[])
    initDisplay(display);
    display->socket = descripteurSocket;
 
-   memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
-   memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
-   strcpy(messageEnvoi, "/version ");
-   strcat(messageEnvoi, VERSION);
-   send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
-
    /* ---------------- BUTTON --------------- */
    BUTTON *buttonList = NULL;
    void (*users)(DISPLAY *);
    users = askForUserList;
    void (*mg)(DISPLAY *);
    mg = switchToMg;
-   void(*leave)(DISPLAY *);
-   leave = leaveChat;
+   void (*clear)(DISPLAY *);
+   clear = clearTampon;
    buttonList = createButton("/users", 0, 0, 1, 1, buttonList, users);
-   buttonList = createButton("/mg", 0, 1, 1, 1, buttonList, mg);
-   buttonList = createButton("/leave", 0, 2, 1, 1, buttonList, leave);
-   
+   buttonList = createButton("/mg", 0, 0, 1, 1, buttonList, mg);
+   buttonList = createButton("/clear", 0, 0, 1, 1, buttonList, clear);
+
    /* ---------------- SETTINGS --------------- */
    bool needToUpdate = false;
+   bool checkVersion = false;
 
    /* ---------------- MAIN LOOP --------------- */
 
@@ -91,6 +86,7 @@ int main(int argc, char *argv[])
       // Initialise à 0 les messages
       memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
       memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
+
       SDL_Event event;
       while (SDL_PollEvent(&event))
       {
@@ -136,26 +132,40 @@ int main(int argc, char *argv[])
             }
             else
             {
+               printf("%s\n", messageRecu);
                handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, display);
                needToUpdate = true;
             }
          }
       }
+
+      if (!checkVersion)
+      {
+         strcpy(messageEnvoi, "/version ");
+         strcat(messageEnvoi, VERSION);
+         send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
+         checkVersion = true;
+         needToUpdate = true;
+      }
+
       if (needToUpdate)
       {
          // Display
          SDL_RenderClear(display->renderer);
          displayBackground(display);
-         if (display->filterActive) {
+         if (display->filterActive)
+         {
             displayTamponFiltered(display);
          }
-         else {
+         else
+         {
             displayTampon(display);
          }
          displayInputField(display);
-         if (display->logged) {
-            displayUserName(display);
-            displayUserList(display);
+         displayUserList(display);
+         displayUserName(display);
+         if (display->logged)
+         {
             displayButtons(display, buttonList);
          }
          SDL_RenderPresent(display->renderer);

@@ -1,6 +1,6 @@
 #include "header.h"
 
-void newUser(Contact *contact, struct sockaddr_in pointDeRencontreDistant, int socketDialogue, int *id)
+void newUser(Contact *contact, int socketDialogue, int *id)
 {
    // Ajout du contact dans la liste
    User *elem;
@@ -8,8 +8,8 @@ void newUser(Contact *contact, struct sockaddr_in pointDeRencontreDistant, int s
    sprintf(ids, "%d", *id);
    elem = malloc(sizeof(User));
    elem->socketClient = socketDialogue;
-   elem->pointDeRencontreDistant = pointDeRencontreDistant;
-   strcpy(elem->login, "Client");
+   elem->logged = false;
+   strcpy(elem->login, "(Unlogged) Client");
    strcat(elem->login, ids);
    if (contact->first != NULL)
    {
@@ -22,7 +22,7 @@ void newUser(Contact *contact, struct sockaddr_in pointDeRencontreDistant, int s
    contact->first = elem;
 
    // On affiche des infos sur le client
-   printf("CONNEXION | Connexion client de %s:%d (%d)\n", inet_ntoa(pointDeRencontreDistant.sin_addr), pointDeRencontreDistant.sin_port, socketDialogue);
+   printf("\nCONNEXION | A new client is connected.\n");
 
    // Création du pollfd
    contact->numfds += 1;
@@ -41,7 +41,7 @@ void removeUser(Contact *contact, int fd_index)
       previous = next;
       next = next->suiv;
    }
-   fprintf(stderr, "\nDECONNEXION | %s s'est déconnecté !\n", next->login);
+   fprintf(stderr, "\nDECONNEXION | %s (%d) is disconnected.\n", next->login, next->socketClient);
    if (next == previous)
    {
       contact->first = next->suiv;
@@ -63,20 +63,17 @@ void removeUser(Contact *contact, int fd_index)
 void printConnected(User *liste)
 {
    User *tmp = liste;
-   printf("CONTACT | > Utilisateurs en ligne : ");
+   printf(" • CONTACT | > User online : ");
    if (liste == NULL)
    {
-      printf("Aucun");
+      printf("None");
    }
    while (tmp != NULL)
    {
-      char ip[INET_ADDRSTRLEN];
-      inet_ntop(AF_INET, &(tmp->pointDeRencontreDistant.sin_addr), ip, INET_ADDRSTRLEN);
-      printf("\n           * %s [%s:%i] (%d)", tmp->login, ip, tmp->pointDeRencontreDistant.sin_port, tmp->socketClient);
-
+      printf("\n           * %s (%d)", tmp->login, tmp->socketClient);
       tmp = tmp->suiv;
    }
-   printf("\n\n");
+   printf("\n");
 }
 
 void checkServer(int socketEcoute)
@@ -135,15 +132,15 @@ void checkArguments(int argc, char *argv[], char *greating)
 
 void printServerStatus(int port, int socketEcoute)
 {
-   printf("SERVER STATUS | Port sélectionée : %d\n", port);
-   printf("SERVER STATUS | Socket créée avec succès ! (%d)\n", socketEcoute);
-   printf("SERVER STATUS | Socket placée en écoute passive ...\n");
-   printf("SERVER STATUS | Socket attachée avec succès !\n");
+   printf("SERVER STATUS | Port selected : %d\n", port);
+   printf("SERVER STATUS | Socket created with success ! (%d)\n", socketEcoute);
+   printf("SERVER STATUS | Socket is now listening ...\n");
+   printf("SERVER STATUS | Socket binded with success !\n");
    printf("SERVER STATUS | Serveur status : ON \n\n");
-   printf("VERSION | Server version : %s\n\n", VERSION);
+   printf("VERSION | Server version : %s\n", VERSION);
 }
 
-void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index)
+void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
 {
    if (strcmp(messageRecu, "\n\0") != 0)
    {
@@ -165,7 +162,7 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
 
          else if (strcmp(strToken, "/version") == 0)
          {
-            cmd_version(strToken, messageEnvoi, socketDialogue, contact, fd_index);
+            cmd_version(strToken, messageEnvoi, socketDialogue, contact, fd_index, greating);
          }
          else if (strcmp(strToken, "/users") == 0)
          {
@@ -211,17 +208,19 @@ void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
             strcat(messageEnvoi, strToken);
             strToken = strtok(NULL, separators);
          }
-         printf("---- %d -----\n", socketDialogue);
          write(destinataire->socketClient, messageEnvoi, strlen(messageEnvoi));
+         printf(" • Message | Message has been sent to %s\n", destinataire->login);
       }
       else
       {
          cmd_ret(404, socketDialogue, messageEnvoi);
+         printf(" • Message | Error : %s is not connected\n", strToken);
       }
    }
    else
    {
       cmd_ret(400, socketDialogue, messageEnvoi);
+      printf(" • Message | Error : missing arguments\n");
    }
 }
 
@@ -255,43 +254,45 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
             }
             destinataire = destinataire->suiv;
          }
-         printf("---- %d -----\n", socketDialogue);
          cmd_ret(200, socketDialogue, messageEnvoi);
+         printf(" • Message | Message has been sent to all users\n");
       }
       else
       {
          cmd_ret(404, socketDialogue, messageEnvoi);
+         printf(" • Message | Error : User not found\n");
       }
    }
    else
    {
       cmd_ret(400, socketDialogue, messageEnvoi);
+      printf(" • Message | Error : Missing parameters\n");
    }
 }
 
-void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index)
+void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
 {
    const char *separators = " \n";
    strToken = strtok(NULL, separators);
    if (strToken != NULL)
    {
-      printf("VERSION | User version : %s\n", strToken);
+      printf(" • VERSION | User version : %s\n", strToken);
       if (strcmp(strToken, VERSION) != 0)
       {
-         printf("VERSION | Error 426 : Client need upgrade !\n");
-         printf("VERSION | Client will be kicked from the server !\n");
+         printf("    • VERSION | Error 426 : Client need upgrade !\n");
+         printf("    • VERSION | Client will be kicked from the server !\n");
          removeUser(contact, fd_index);
          cmd_ret(426, socketDialogue, messageEnvoi);
       }
       else
       {
-         strcpy(messageEnvoi, "/greating Bienvenue sur le serveur ");
+         strcpy(messageEnvoi, "/greating ");
+         strcat(messageEnvoi, greating);
          send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
-         usleep(10);
+         usleep(100000);
          strcpy(messageEnvoi, "/login");
          send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
       }
-      printf("\n");
    }
    else
    {
@@ -313,6 +314,7 @@ void cmd_users(int socketDialogue, char messageEnvoi[LG_MESSAGE], User *liste)
       tmp = tmp->suiv;
    }
    write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
+   printf(" • USERS | %s\n", messageEnvoi);
 }
 
 void cmd_ret(int code, int socketDialogue, char messageEnvoi[LG_MESSAGE])
@@ -321,7 +323,7 @@ void cmd_ret(int code, int socketDialogue, char messageEnvoi[LG_MESSAGE])
    sprintf(codes, "%d", code);
    strcpy(messageEnvoi, "/ret ");
    strcat(messageEnvoi, codes);
-   write(socketDialogue, messageEnvoi, strlen(messageEnvoi));
+   send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
 }
 
 void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index)
@@ -338,11 +340,8 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
       }
       if (tmp != NULL)
       {
-         printf("LOGIN | Error 409 : Login '%s' already used !\n", strToken);
+         printf(" • LOGIN | Error 409 : Login '%s' already used !\n", strToken);
          cmd_ret(409, socketDialogue, messageEnvoi);
-         usleep(10);
-         strcpy(messageEnvoi, "/login");
-         send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
       }
       else
       {
@@ -354,23 +353,15 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
          if (tmp != NULL)
          {
             strcpy(tmp->login, strToken);
-            printf("LOGIN | User %s logged in !\n", strToken);
+            printf(" • LOGIN | User %s logged in !\n", strToken);
             tmp->logged = 1;
             cmd_ret(200, socketDialogue, messageEnvoi);
-         }
-         else
-         {
-            printf("LOGIN | Error 404 : User not found !\n");
-            cmd_ret(404, socketDialogue, messageEnvoi);
          }
       }
    }
    else
    {
-      printf("LOGIN | Error 409 : Login is invalid !\n");
+      printf(" • LOGIN | Error 409 : Login is invalid !\n");
       cmd_ret(409, socketDialogue, messageEnvoi);
-      usleep(10);
-      strcpy(messageEnvoi, "/login");
-      send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
    }
 }
