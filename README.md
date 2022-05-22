@@ -9,8 +9,8 @@ You need to install Linux OS like UBUNTU to execute the code
 ## Authors
 
 * **Mathias Citrini** - *Project Manager* - [DevilMortar](https://github.com/DevilMortar)
-
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+* **Julien Repplinger** - *Developer*
+* **Rémi Vassoille** - *Developer*
 
 ## License
 
