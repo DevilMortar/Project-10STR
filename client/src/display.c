@@ -87,6 +87,10 @@ void displayTamponFiltered(DISPLAY *display)
 
 SDL_Texture *renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL_Renderer *renderer, SDL_Rect *dstrect)
 {
+    if (strlen(message) == 0)
+    {
+        return NULL;
+    }
     // Color
     if (color == NULL)
     {

@@ -151,7 +151,8 @@ int main(int argc, char *argv[])
          // On vérifie si le client est à jour
          strcpy(messageEnvoi, "/version ");
          strcat(messageEnvoi, VERSION);
-         send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
+         printf("%s\n", messageEnvoi);
+         write(poll_struct->poll_set[1].fd, messageEnvoi, strlen(messageEnvoi));
          checkVersion = true;
          needToUpdate = true;
       }

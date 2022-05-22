@@ -146,7 +146,7 @@ void printServerStatus(int port, int socketEcoute)
    printf("VERSION | Server version : %s\n", VERSION);
 }
 
-void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
+void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char *greating)
 {
    // On traite le message reçu
    if (strcmp(messageRecu, "\n\0") != 0)
@@ -260,21 +260,22 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
       {
          // Si l'emmetteur est connecté
          User *destinataire = liste;
+         strcpy(messageEnvoi, "/mg ");
+         strcat(messageEnvoi, emetteur->login);
+         while (strToken != NULL)
+         {
+            strcat(messageEnvoi, " ");
+            strcat(messageEnvoi, strToken);
+            strToken = strtok(NULL, separators);
+         }
          while (destinataire != NULL)
          {
             // Envoi du message à tous les utilisateurs connectés
-            if (destinataire->socketClient != socketDialogue && destinataire->logged == 1)
+            if (destinataire->logged == 1 && destinataire->socketClient != socketDialogue)
             {
                // Si le destinataire n'est pas l'emmetteur
-               strcpy(messageEnvoi, "/mg ");
-               strcat(messageEnvoi, emetteur->login);
-               while (strToken != NULL)
-               {
-                  strcat(messageEnvoi, " ");
-                  strcat(messageEnvoi, strToken);
-                  strToken = strtok(NULL, separators);
-               }
                write(destinataire->socketClient, messageEnvoi, strlen(messageEnvoi));
+               printf(" • Message | Message has been sent to %s\n", destinataire->login);
             }
             destinataire = destinataire->suiv;
          }
@@ -290,7 +291,7 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
    }
 }
 
-void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
+void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char *greating)
 {
    // On traite le message version
    const char *separators = " \n";
