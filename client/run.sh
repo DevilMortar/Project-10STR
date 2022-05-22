@@ -1,1 +1,1 @@
-clear && make clean && make && ./client -p 5000
+clear && make clean && make && cd ./bin && ./client -p 5000

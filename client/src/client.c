@@ -6,7 +6,7 @@
 #include <string.h>     /* pour memset */
 #include <netinet/in.h> /* pour struct sockaddr_in */
 #include <arpa/inet.h>  /* pour htons et inet_aton */
-#include "header.h"
+#include "../include/header.h"
 
 #define LG_MESSAGE 256
 
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
       exit(-2);                 // On sort en indiquant un code erreur
    }
 
-   /* ---------------- Contact & Poll --------------- */
+   /* ---------------- Initialisation du poll --------------- */
    POLL *poll_struct = malloc(sizeof(POLL));
    poll_struct->poll_set = malloc(2 * sizeof(struct pollfd));
    poll_struct->poll_set[0].fd = STDIN_FILENO;
@@ -56,12 +56,12 @@ int main(int argc, char *argv[])
    poll_struct->poll_set[1].events = POLLIN | POLLPRI | POLLHUP | POLLOUT;
    poll_struct->numfds = 2;
 
-   /* ---------------- Display --------------- */
+   /* ---------------- Initialisation de la structure display --------------- */
    DISPLAY *display = malloc(sizeof(DISPLAY));
    initDisplay(display);
    display->socket = descripteurSocket;
 
-   /* ---------------- BUTTON --------------- */
+   /* ---------------- Création des bouttons --------------- */
    BUTTON *buttonList = NULL;
    void (*users)(DISPLAY *);
    users = askForUserList;
@@ -73,11 +73,11 @@ int main(int argc, char *argv[])
    buttonList = createButton("/mg", 0, 0, 1, 1, buttonList, mg);
    buttonList = createButton("/clear", 0, 0, 1, 1, buttonList, clear);
 
-   /* ---------------- SETTINGS --------------- */
+   /* ---------------- Paramètres --------------- */
    bool needToUpdate = false;
    bool checkVersion = false;
 
-   /* ---------------- MAIN LOOP --------------- */
+   /* ---------------- Main Loop --------------- */
 
    while (display->running)
    {
@@ -97,29 +97,34 @@ int main(int argc, char *argv[])
             break;
 
          case SDL_KEYDOWN:
+            // On récupère le caractère tapé
             if (handleInput(display, event))
             {
+               // Si le caractère tapé est un retour chariot, on envoie le message
                sendMessage(display);
             }
-            needToUpdate = true;
+            needToUpdate = true; // On update la fenêtre
             break;
          case SDL_MOUSEBUTTONDOWN:
+            // On vérifie si on a cliqué sur un bouton ou un user
             needToUpdate = needToUpdate | checkClickButton(buttonList, event, display);
             needToUpdate = needToUpdate | checkClickUser(display, event);
-            needToUpdate = true;
             break;
          default:
+            // On vérifie si le curseur est dans la zone du bouton ou d'un user
             needToUpdate = needToUpdate | checkHoverButton(buttonList, event);
             needToUpdate = needToUpdate | checkHoverUser(display, event);
             break;
          }
       }
 
+      // On écoute le socket
       poll(poll_struct->poll_set, poll_struct->numfds, -1);
       for (int fd_index = 0; fd_index < poll_struct->numfds; fd_index++)
       {
          if (poll_struct->poll_set[fd_index].revents & POLLIN || poll_struct->poll_set[fd_index].revents & POLLPRI)
          {
+            // On lit le message
             lus = recv(poll_struct->poll_set[fd_index].fd, messageRecu, LG_MESSAGE, 0);
             if (lus < 0)
             {
@@ -132,7 +137,9 @@ int main(int argc, char *argv[])
             }
             else
             {
+               // On affiche le message
                printf("%s\n", messageRecu);
+               // On traite le message
                handleMessage(messageRecu, messageEnvoi, poll_struct->poll_set[fd_index].fd, display);
                needToUpdate = true;
             }
@@ -141,6 +148,7 @@ int main(int argc, char *argv[])
 
       if (!checkVersion)
       {
+         // On vérifie si le client est à jour
          strcpy(messageEnvoi, "/version ");
          strcat(messageEnvoi, VERSION);
          send(descripteurSocket, messageEnvoi, LG_MESSAGE, 0);
@@ -150,7 +158,7 @@ int main(int argc, char *argv[])
 
       if (needToUpdate)
       {
-         // Display
+         // On update la fenêtre
          SDL_RenderClear(display->renderer);
          displayBackground(display);
          if (display->filterActive)
@@ -171,6 +179,7 @@ int main(int argc, char *argv[])
          SDL_RenderPresent(display->renderer);
       }
    }
+   // On libère la mémoire
    freeUserList(display->users);
    SDL_Quit();
    return 0;

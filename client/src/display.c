@@ -1,4 +1,4 @@
-#include "header.h"
+#include "../include/header.h"
 
 SDL_Color *colorMessage(char *message)
 {
@@ -97,7 +97,7 @@ SDL_Texture *renderWidgetText(char *message, SDL_Color *color, int fontSize, SDL
     }
     color->a = 255;
     // Open the font
-    TTF_Font *font = TTF_OpenFont("police.ttf", fontSize); // Open the font you want
+    TTF_Font *font = TTF_OpenFont("../asset/police.ttf", fontSize); // Open the font you want
     if (font == NULL)
     {
         SDL_ExitWithError("SDL || TTF_OpenFont");
@@ -151,7 +151,7 @@ void displayBackground(DISPLAY *display)
     SDL_RenderFillRect(display->renderer, &user);
     SDL_SetRenderDrawColor(display->renderer, 80, 80, 80, 255);
     SDL_RenderFillRect(display->renderer, &list);
-    SDL_Texture *logo = IMG_LoadTexture(display->renderer, "logo.png");
+    SDL_Texture *logo = IMG_LoadTexture(display->renderer, "../asset/logo.png");
     SDL_RenderCopy(display->renderer, logo, NULL, &image);
     SDL_DestroyTexture(logo);
 }

@@ -1,13 +1,13 @@
-#include "header.h"
+#include "../include/header.h"
 
 int main(int argc, char *argv[])
 {
-   /* ---------------- Arguments --------------- */
+   /* ---------------- Vérification des arguement de lancement --------------- */
    char greating[LG_MESSAGE];
    memset(greating, 0x00, LG_MESSAGE * sizeof(char));
    checkArguments(argc, argv, greating);
 
-   /* ---------------- Initialisation --------------- */
+   /* ---------------- Initialisation du serveur --------------- */
    int port = atoi(argv[2]);
    char * serverName = argv[4];
    int socketEcoute;
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
    contact->poll_set[0].fd = socketEcoute;
    contact->poll_set[0].events = POLLIN | POLLPRI | POLLHUP;
 
-   /* ---------------- Socket --------------- */
+   /* ---------------- Vérifie si la socket a bien été créée --------------- */
    checkServer(socketEcoute);
 
    // On prépare l'adresse d'attachement locale
@@ -58,18 +58,22 @@ int main(int argc, char *argv[])
    // Lancement du serveur !
    printServerStatus(port, socketEcoute);
 
-   // boucle d'attente de connexion : en théorie, un serveur attend indéfiniment !
+   // boucle infinie
    while (1)
    {
+      // Initialisation des messages
       memset(messageEnvoi, 0x00, LG_MESSAGE * sizeof(char));
       memset(messageRecu, 0x00, LG_MESSAGE * sizeof(char));
       poll(contact->poll_set, contact->numfds, -1);
+      // On vérifie si il y a des événements sur la socket d'écoute
       for (int fd_index = 0; fd_index < contact->numfds; fd_index++)
       {
          if (contact->poll_set[fd_index].revents & POLLIN || contact->poll_set[fd_index].revents & POLLPRI || contact->poll_set[fd_index].revents & POLLOUT)
          {
+            // Il y a un événement sur la socket d'écoute
             if (contact->poll_set[fd_index].fd == socketEcoute)
             {
+               // On accepte une connexion
                socketDialogue = accept(socketEcoute, (struct sockaddr *)&pointDeRencontreDistant, &longueurAdresse);
                checkSocketDialogue(socketDialogue, socketEcoute);
                newUser(contact, socketDialogue, &id);
@@ -96,6 +100,7 @@ int main(int argc, char *argv[])
                      tmp = tmp->suiv;
                   }
                   if (strcmp(messageRecu, "\n\0") != 0) {
+                     // On traite le message reçu
                      printf("\nMESSAGE | %s (%d) : %s\n", tmp->login, tmp->socketClient, messageRecu);
                      handleMessage(messageRecu, messageEnvoi, contact->poll_set[fd_index].fd, contact, fd_index, greating);
                   }

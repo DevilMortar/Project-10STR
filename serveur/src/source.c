@@ -1,4 +1,4 @@
-#include "header.h"
+#include "../include/header.h"
 
 void newUser(Contact *contact, int socketDialogue, int *id)
 {
@@ -34,6 +34,7 @@ void newUser(Contact *contact, int socketDialogue, int *id)
 
 void removeUser(Contact *contact, int fd_index)
 {
+   // On supprime le contact de la liste
    User *previous = contact->first;
    User *next = contact->first;
    while (next != NULL && next->socketClient != contact->poll_set[fd_index].fd)
@@ -56,12 +57,14 @@ void removeUser(Contact *contact, int fd_index)
    {
       contact->poll_set[i] = contact->poll_set[i + 1];
    }
-   printConnected(contact->first);
    contact->numfds -= 1;
+   // On affiche des infos sur les clients
+   printConnected(contact->first);
 }
 
 void printConnected(User *liste)
 {
+   // On affiche les clients connectés
    User *tmp = liste;
    printf(" • CONTACT | > User online : ");
    if (liste == NULL)
@@ -78,6 +81,7 @@ void printConnected(User *liste)
 
 void checkServer(int socketEcoute)
 {
+   // On vérifie que la socket est bien ouverte
    if (socketEcoute < 0) /* échec ? */
    {
       perror("socket"); // Affiche le message d'erreur
@@ -87,6 +91,7 @@ void checkServer(int socketEcoute)
 
 void checkSocketDialogue(int socketDialogue, int socketEcoute)
 {
+   // On vérifie que la socket est bien ouverte
    if (socketDialogue < 0)
    {
       perror("accept");
@@ -98,7 +103,7 @@ void checkSocketDialogue(int socketDialogue, int socketEcoute)
 
 void checkArguments(int argc, char *argv[], char *greating)
 {
-   // ./main<p7port -n name -g Hello Machin
+   // On vérifie que les arguments sont bien passés
    if (argc < 7)
    {
       perror("SERVER | Missing arguments (4 required)");
@@ -132,6 +137,7 @@ void checkArguments(int argc, char *argv[], char *greating)
 
 void printServerStatus(int port, int socketEcoute)
 {
+   // On affiche le statut du serveur
    printf("SERVER STATUS | Port selected : %d\n", port);
    printf("SERVER STATUS | Socket created with success ! (%d)\n", socketEcoute);
    printf("SERVER STATUS | Socket is now listening ...\n");
@@ -142,8 +148,10 @@ void printServerStatus(int port, int socketEcoute)
 
 void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
 {
+   // On traite le message reçu
    if (strcmp(messageRecu, "\n\0") != 0)
    {
+      // Si le message n'est pas vide
       const char *separators = " \n";
       char *strToken = strtok(messageRecu, separators);
       // Récupération du mot clé
@@ -152,28 +160,34 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
       {
          if (strcmp(strToken, "/mp") == 0)
          {
+            // Si le message commence par /mp
             cmd_mp(strToken, messageEnvoi, socketDialogue, contact->first);
          }
 
          else if (strcmp(strToken, "/mg") == 0)
          {
+            // Si le message commence par /mg
             cmd_mg(strToken, messageEnvoi, socketDialogue, contact->first);
          }
 
          else if (strcmp(strToken, "/version") == 0)
          {
+            // Si le message commence par /version
             cmd_version(strToken, messageEnvoi, socketDialogue, contact, fd_index, greating);
          }
          else if (strcmp(strToken, "/users") == 0)
          {
+            // Si le message commence par /users
             cmd_users(socketDialogue, messageEnvoi, contact->first);
          }
          else if (strcmp(strToken, "/login") == 0)
          {
+            // Si le message commence par /login
             cmd_login(strToken, messageEnvoi, socketDialogue, contact, fd_index);
          }
          else
          {
+            // Si le premier mot clé n'est pas reconnu
             cmd_ret(501, socketDialogue, messageEnvoi);
          }
       }
@@ -182,10 +196,12 @@ void handleMessage(char messageRecu[LG_MESSAGE], char messageEnvoi[LG_MESSAGE], 
 
 void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, User *liste)
 {
+   // On traite le message MP
    const char *separators = " \n";
    strToken = strtok(NULL, separators);
    if (strToken != NULL)
    {
+      // Récupération du login du destinataire et de l'emmetteur
       User *destinataire = liste;
       while (destinataire != NULL && strcmp(strToken, destinataire->login) != 0)
       {
@@ -198,6 +214,7 @@ void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
       }
       if (emetteur != NULL && destinataire != NULL && destinataire->logged == 1)
       {
+         // Si le destinataire est connecté
          cmd_ret(200, socketDialogue, messageEnvoi);
          strcpy(messageEnvoi, "/mp ");
          strcat(messageEnvoi, emetteur->login);
@@ -213,12 +230,14 @@ void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
       }
       else
       {
+         // Si le destinataire n'est pas connecté
          cmd_ret(404, socketDialogue, messageEnvoi);
          printf(" • Message | Error : %s is not connected\n", strToken);
       }
    }
    else
    {
+      // Si le message MP est vide
       cmd_ret(400, socketDialogue, messageEnvoi);
       printf(" • Message | Error : missing arguments\n");
    }
@@ -226,10 +245,12 @@ void cmd_mp(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
 
 void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, User *liste)
 {
+   // On traite le message MG
    const char *separators = " \n";
    strToken = strtok(NULL, separators);
    if (strToken != NULL)
    {
+      // Récupération du login de l'emmetteur
       User *emetteur = liste;
       while (emetteur != NULL && socketDialogue != emetteur->socketClient)
       {
@@ -237,11 +258,14 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
       }
       if (emetteur != NULL)
       {
+         // Si l'emmetteur est connecté
          User *destinataire = liste;
          while (destinataire != NULL)
          {
+            // Envoi du message à tous les utilisateurs connectés
             if (destinataire->socketClient != socketDialogue && destinataire->logged == 1)
             {
+               // Si le destinataire n'est pas l'emmetteur
                strcpy(messageEnvoi, "/mg ");
                strcat(messageEnvoi, emetteur->login);
                while (strToken != NULL)
@@ -257,14 +281,10 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
          cmd_ret(200, socketDialogue, messageEnvoi);
          printf(" • Message | Message has been sent to all users\n");
       }
-      else
-      {
-         cmd_ret(404, socketDialogue, messageEnvoi);
-         printf(" • Message | Error : User not found\n");
-      }
    }
    else
    {
+      // Si le message MG est vide
       cmd_ret(400, socketDialogue, messageEnvoi);
       printf(" • Message | Error : Missing parameters\n");
    }
@@ -272,13 +292,16 @@ void cmd_mg(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, U
 
 void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index, char * greating)
 {
+   // On traite le message version
    const char *separators = " \n";
    strToken = strtok(NULL, separators);
    if (strToken != NULL)
    {
+      // On vérifie la version
       printf(" • VERSION | User version : %s\n", strToken);
       if (strcmp(strToken, VERSION) != 0)
       {
+         // Si la version est différente
          printf("    • VERSION | Error 426 : Client need upgrade !\n");
          printf("    • VERSION | Client will be kicked from the server !\n");
          removeUser(contact, fd_index);
@@ -286,6 +309,7 @@ void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialog
       }
       else
       {
+         // Si la version est identique
          strcpy(messageEnvoi, "/greating ");
          strcat(messageEnvoi, greating);
          send(socketDialogue, messageEnvoi, strlen(messageEnvoi), 0);
@@ -296,12 +320,14 @@ void cmd_version(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialog
    }
    else
    {
+      // Si le message version est vide
       cmd_ret(400, socketDialogue, messageEnvoi);
    }
 }
 
 void cmd_users(int socketDialogue, char messageEnvoi[LG_MESSAGE], User *liste)
 {
+   // On traite le message users
    User *tmp = liste;
    strcpy(messageEnvoi, "/users");
    while (tmp != NULL)
@@ -319,6 +345,7 @@ void cmd_users(int socketDialogue, char messageEnvoi[LG_MESSAGE], User *liste)
 
 void cmd_ret(int code, int socketDialogue, char messageEnvoi[LG_MESSAGE])
 {
+   // On envoie un code de retour
    char codes[10] = "";
    sprintf(codes, "%d", code);
    strcpy(messageEnvoi, "/ret ");
@@ -328,9 +355,10 @@ void cmd_ret(int code, int socketDialogue, char messageEnvoi[LG_MESSAGE])
 
 void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue, Contact *contact, int fd_index)
 {
+   // On traite le message login
    const char *separators = "\n";
    strToken = strtok(NULL, separators);
-   // check if login contain spaces
+   // On vérifie que le login est correct
    if (strToken != NULL && strlen(strToken) <= 20 && strchr(strToken, ' ') == NULL)
    {
       User *tmp = contact->first;
@@ -340,6 +368,7 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
       }
       if (tmp != NULL)
       {
+         // Si le login existe déjà
          printf(" • LOGIN | Error 409 : Login '%s' already used !\n", strToken);
          cmd_ret(409, socketDialogue, messageEnvoi);
       }
@@ -352,6 +381,7 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
          }
          if (tmp != NULL)
          {
+            // Connexion de l'utilisateur
             strcpy(tmp->login, strToken);
             printf(" • LOGIN | User %s logged in !\n", strToken);
             tmp->logged = 1;
@@ -361,6 +391,7 @@ void cmd_login(char *strToken, char messageEnvoi[LG_MESSAGE], int socketDialogue
    }
    else
    {
+      // Si le login est vide ou trop long
       printf(" • LOGIN | Error 409 : Login is invalid !\n");
       cmd_ret(409, socketDialogue, messageEnvoi);
    }

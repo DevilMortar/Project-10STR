@@ -1,12 +1,20 @@
-server: server.o source.o source.c header.h
+src = ./src
+lib = ./lib
+bin = ./bin
+include = ./include
+
+server: server.o source.o $(src)/source.c $(include)/header.h
 	gcc -o server server.o source.o -lm
+	mv server $(bin)
+	mv *.o $(lib)
 
-server.o : server.c
-	gcc -g -Wall -c server.c
+server.o : $(src)/server.c
+	gcc -g -Wall -c $(src)/server.c
 
-source.o : header.h
-	gcc -g -Wall -c source.c
+source.o : $(include)/header.h
+	gcc -g -Wall -c $(src)/source.c
 	
 clean :
-	rm -f server *.o
+	rm -f $(bin)/server $(lib)/*.o
+
 
